@@ -14,7 +14,7 @@ export interface Track {
 interface MediaLibraryProps {
   tracks: Track[];
   onTrackSelect: (track: Track) => void;
-  selectedTrack?: Track;
+  selectedTrack?: Track | null;
   className?: string;
   isPlaying?: boolean;
   onPlayPause?: () => void;

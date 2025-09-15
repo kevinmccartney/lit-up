@@ -159,7 +159,7 @@ const MediaPlayer: React.FC<MediaPlayerProps> = ({
       {cover && (
         <div className="flex md:justify-center">
           <img
-            src={`/${cover}`}
+            src={`${cover}`}
             alt={`${title} cover`}
             className="md:w-72 md:h-72 w-48 h-48 rounded-xl object-cover"
             onError={(e) => {

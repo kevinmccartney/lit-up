@@ -29,3 +29,15 @@ output "s3_bucket_name" {
   description = "Name of the S3 bucket for deployment"
   value       = aws_s3_bucket.static_site.bucket
 }
+
+# Output the CloudFront distribution URL
+output "cloudfront_url" {
+  description = "CloudFront distribution URL"
+  value       = "https://${aws_cloudfront_distribution.static_site.domain_name}"
+}
+
+# # Output the custom domain URL
+# output "website_url" {
+#   description = "Custom domain URL for the website"
+#   value       = "https://lit-up.kevinmccartney.is"
+# }

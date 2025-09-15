@@ -2,8 +2,10 @@ version: 3
 
 tasks:
   app:dev:
-    cmd: |
-      npm run dev
+    cmds:
+      - task: songs:process
+      - task: config:generate
+      - npm run dev
   app:build:
     cmd: |
       npm run build
@@ -12,6 +14,8 @@ tasks:
       npm run preview
   app:deploy:
     cmds:
+      - task: songs:process
+      - task: config:generate
       - task: app:build
       - |
         echo "🚀 Deploying React app to S3..."
@@ -54,3 +58,47 @@ tasks:
   infra:destroy:
     cmd: |
       cd infra && terraform destroy
+  ssl:status:
+    desc: "Check SSL certificate validation status"
+    cmd: |
+      cd infra && terraform output certificate_validation_status
+  ssl:info:
+    desc: "Display SSL certificate information"
+    cmd: |
+      echo "SSL Certificate Information:"
+      echo "Domain: $(cd infra && terraform output -raw certificate_domain_name)"
+      echo "ARN: $(cd infra && terraform output -raw certificate_arn)"
+      echo "Status: $(cd infra && terraform output -raw certificate_validation_status)"
+      echo ""
+      echo "Website URLs:"
+      echo "Custom Domain: $(cd infra && terraform output -raw website_url)"
+      echo "CloudFront URL: $(cd infra && terraform output -raw cloudfront_url)"
+  songs:process:
+    desc: "Run the process_songs.py script with virtual environment setup"
+    cmds:
+      - |
+        echo "🐍 Setting up Python virtual environment..."
+        cd scripts
+        if [ ! -d "venv" ]; then
+          python -m venv venv
+          echo "✅ Virtual environment created"
+        else
+          echo "✅ Virtual environment already exists"
+        fi
+        source venv/bin/activate
+        echo "📦 Installing requirements..."
+        pip install -r requirements.txt
+        echo "🚀 Running process_songs.py..."
+        python process_songs.py
+  config:generate:
+    desc: "Convert song_list.yaml to appConfig.json for the app"
+    cmds:
+      - |
+        echo "🔄 Converting YAML to JSON..."
+        cd scripts
+        if [ ! -d "venv" ]; then
+          python -m venv venv
+        fi
+        source venv/bin/activate
+        pip install -r requirements.txt -q
+        python generate_config.py

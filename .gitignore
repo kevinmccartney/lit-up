@@ -1,1 +1,6 @@
 dist
+.output
+public/
+.env
+.DS_Store
+song_list.yaml
