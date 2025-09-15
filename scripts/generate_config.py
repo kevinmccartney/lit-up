@@ -52,6 +52,7 @@ def generate_app_config():
                 "artist": song["artist"],
                 "duration": song["duration"],
                 "cover": f'/album_art/{song["id"]}.jpg',
+                "isSecret": song["isSecret"],
             }
             tracks.append(track)
 

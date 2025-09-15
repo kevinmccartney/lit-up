@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import MediaPlayer from "./components/MediaPlayer";
+import { useState, useEffect, useMemo, useRef } from "react";
+import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
 import MediaLibrary, { Track } from "./components/MediaLibrary";
 import { useTracks } from "./hooks/useTracks";
 import { Heart } from "lucide-react";
@@ -10,15 +10,27 @@ function App(): JSX.Element {
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showMeadow, setShowMeadow] = useState<boolean>(false);
+  const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
+  const [mainPlayerPaused, setMainPlayerPaused] = useState<boolean>(false);
+  const mainPlayerRef = useRef<MediaPlayerRef>(null);
+  const secretTrack = useMemo(
+    () => allTracks.find((track) => track.isSecret) ?? null,
+    [allTracks]
+  );
 
   // Load tracks from appConfig.json on component mount
   useEffect(() => {
     const loadTracksData = async () => {
       try {
         const loadedTracks = await useTracks();
-        setTracks(loadedTracks);
-        if (loadedTracks.length > 0) {
-          setSelectedTrack(loadedTracks[0]);
+        setAllTracks(loadedTracks);
+        // Filter out secret tracks from the main tracks list
+        const publicTracks = loadedTracks.filter((track) => !track.isSecret);
+        setTracks(publicTracks);
+        if (publicTracks.length > 0) {
+          setSelectedTrack(publicTracks[0]);
         }
       } catch (error) {
         console.error("Failed to load tracks:", error);
@@ -64,6 +76,38 @@ function App(): JSX.Element {
     setIsPlaying(!isPlaying);
   };
 
+  const handleHeartClick = () => {
+    if (!showMeadow && secretTrack) {
+      // Show meadow and start playing secret track
+      setShowMeadow(true);
+      setSecretTrackPlaying(true);
+      // Pause main player if it's playing
+      if (isPlaying && mainPlayerRef.current) {
+        setMainPlayerPaused(true);
+        mainPlayerRef.current.pause();
+      }
+    } else {
+      // Hide meadow and stop secret track
+      setShowMeadow(false);
+      setSecretTrackPlaying(false);
+      // Resume main player if it was paused
+      if (mainPlayerPaused && mainPlayerRef.current) {
+        mainPlayerRef.current.play();
+        setMainPlayerPaused(false);
+      }
+    }
+  };
+
+  const handleMeadowClick = () => {
+    setShowMeadow(false);
+    setSecretTrackPlaying(false);
+    // Resume main player if it was paused
+    if (mainPlayerPaused && mainPlayerRef.current) {
+      mainPlayerRef.current.play();
+      setMainPlayerPaused(false);
+    }
+  };
+
   // Show loading state while tracks are being loaded
   if (isLoading) {
     return (
@@ -101,39 +145,72 @@ function App(): JSX.Element {
 
   return (
     <div className="h-screen flex flex-col bg-palette-cyan">
-      <header className="p-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold">✨ Lit Up</h1>
+      <header className="p-4 flex-shrink-0 marquee">
+        <h1 className="text-2xl font-bold">♍️ Happy Birthday Sarah!! 🥳</h1>
       </header>
-      <main className="flex-1 flex flex-col md:flex-row gap-8 p-4 overflow-auto">
-        <MediaLibrary
-          tracks={tracks}
-          onTrackSelect={handleTrackSelect}
-          selectedTrack={selectedTrack}
-          className="order-2 md:order-1 md:self-start"
-          isPlaying={isPlaying}
-          onPlayPause={handlePlayPause}
-        />
-        {selectedTrack && (
-          <MediaPlayer
-            key={selectedTrack.id} // Force re-render when track changes
-            src={selectedTrack.src}
-            title={selectedTrack.title}
-            cover={selectedTrack.cover}
-            autoPlay={autoPlay}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            hasPrevious={getCurrentTrackIndex() > 0}
-            hasNext={getCurrentTrackIndex() < tracks.length - 1}
-            className="order-1 md:order-2 w-full md:w-auto"
+      <main className="flex-1 flex flex-col md:flex-row gap-4 p-4 min-h-0">
+        {/* Main interface - hidden when meadow is shown */}
+        <div
+          className={`flex-1 flex flex-col md:flex-row gap-4 min-h-0 ${
+            showMeadow ? "hidden" : ""
+          }`}
+        >
+          <MediaLibrary
+            tracks={tracks}
+            onTrackSelect={handleTrackSelect}
+            selectedTrack={selectedTrack}
+            className="order-2 md:order-1 md:w-80 md:flex-shrink-0 overflow-y-auto flex-1 md:flex-none"
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
           />
+          {selectedTrack && (
+            <MediaPlayer
+              ref={mainPlayerRef}
+              key={selectedTrack.id} // Force re-render when track changes
+              src={selectedTrack.src}
+              title={selectedTrack.title}
+              cover={selectedTrack.cover}
+              autoPlay={autoPlay}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              hasPrevious={getCurrentTrackIndex() > 0}
+              hasNext={getCurrentTrackIndex() < tracks.length - 1}
+              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0"
+              isPlaying={isPlaying}
+              onPlayPause={handlePlayPause}
+            />
+          )}
+        </div>
+
+        {/* Meadow view - shown when meadow is active */}
+        {showMeadow && secretTrack && (
+          <div
+            className="flex-1 flex items-center justify-center cursor-pointer"
+            onClick={handleMeadowClick}
+          >
+            <img
+              src={secretTrack.cover}
+              alt="Meadow"
+              className="w-full h-full object-contain"
+            />
+            {/* Hidden audio element for secret track */}
+            <audio
+              key={`secret-audio-${secretTrack.id}`}
+              src={secretTrack.src}
+              autoPlay={secretTrackPlaying}
+              loop
+              style={{ display: "none" }}
+            />
+          </div>
         )}
       </main>
       <footer className="p-4 flex-shrink-0 text-sm text-center">
         <p className="flex items-center justify-center gap-2">
           Built with{" "}
-          <span className="transition-all duration-300 hover:scale-125 hover:text-palette-pink text-palette-coral cursor-pointer">
+          <span
+            className="transition-all duration-300 hover:scale-125 hover:text-palette-pink text-palette-coral cursor-pointer"
+            onClick={handleHeartClick}
+          >
             <Heart fill="currentColor" stroke="currentColor" size={16} />
           </span>
           by HK

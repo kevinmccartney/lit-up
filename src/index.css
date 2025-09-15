@@ -20,3 +20,25 @@ body {
     Consolas, "Liberation Mono", "Courier New", monospace;
   color: #222222;
 }
+
+.marquee {
+  width: 85%; /* limit width */
+  overflow: hidden; /* hide overflow */
+  white-space: nowrap; /* keep text in one line */
+  margin: 0 auto;
+}
+
+.marquee > h1 {
+  display: inline-block;
+  padding-left: 100%; /* start from outside */
+  animation: marquee 10s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}

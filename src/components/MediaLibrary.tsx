@@ -9,6 +9,7 @@ export interface Track {
   artist: string;
   duration: string;
   cover: string;
+  isSecret: boolean;
 }
 
 interface MediaLibraryProps {
@@ -29,9 +30,9 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   onPlayPause,
 }) => {
   return (
-    <div className={cn("p-5", className)}>
-      <div className="flex flex-col gap-2.5">
-        {tracks.map((track) => (
+    <div className={cn("flex flex-col gap-2.5 p-5 min-h-0", className)}>
+      {tracks.map((track) =>
+        track.isSecret ? null : (
           <div
             key={track.id}
             className={`flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 border-2 border-palette-coral hover:translate-x-1 gap-4 ${
@@ -71,8 +72,8 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               )}
             </div>
           </div>
-        ))}
-      </div>
+        )
+      )}
     </div>
   );
 };

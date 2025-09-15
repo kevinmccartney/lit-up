@@ -90,6 +90,7 @@ tasks:
         pip install -r requirements.txt
         echo "🚀 Running process_songs.py..."
         python process_songs.py
+      - task: songs:analyze
   config:generate:
     desc: "Convert song_list.yaml to appConfig.json for the app"
     cmds:
@@ -102,3 +103,15 @@ tasks:
         source venv/bin/activate
         pip install -r requirements.txt -q
         python generate_config.py
+  songs:analyze:
+    desc: "Analyze existing MP3 files and update song_list.yaml with actual durations"
+    cmds:
+      - |
+        echo "🔍 Analyzing MP3 durations..."
+        cd scripts
+        if [ ! -d "venv" ]; then
+          python -m venv venv
+        fi
+        source venv/bin/activate
+        pip install -r requirements.txt -q
+        python analyze_mp3_durations.py

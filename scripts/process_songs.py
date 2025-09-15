@@ -18,6 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, WebDriverException
+from mutagen import File
 
 # Configure logging
 logging.basicConfig(
@@ -120,6 +121,50 @@ def create_filename_from_id(song_id, extension="mp3"):
     # Clean the ID to make it filesystem-safe
     safe_id = str(song_id).replace("/", "_").replace("\\", "_").replace(":", "_")
     return f"{safe_id}.{extension}"
+
+
+def get_mp3_duration(mp3_file_path):
+    """
+    Get the duration of an MP3 file in seconds.
+
+    Args:
+        mp3_file_path: Path to the MP3 file
+
+    Returns:
+        float: Duration in seconds, or None if unable to determine
+    """
+    try:
+        audio_file = File(mp3_file_path)
+        if audio_file is not None and hasattr(audio_file, "info"):
+            duration = audio_file.info.length
+            logger.info(
+                f"✓ MP3 duration: {duration:.2f} seconds ({format_duration(duration)})"
+            )
+            return duration
+        else:
+            logger.warning(f"⚠ Could not read MP3 file: {mp3_file_path}")
+            return None
+    except Exception as e:
+        logger.warning(f"⚠ Error getting MP3 duration: {e}")
+        return None
+
+
+def format_duration(seconds):
+    """
+    Format duration in seconds to MM:SS format.
+
+    Args:
+        seconds: Duration in seconds
+
+    Returns:
+        str: Formatted duration string (MM:SS)
+    """
+    if seconds is None:
+        return "0:00"
+
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes}:{seconds:02d}"
 
 
 def download_album_art(album_art_url, output_path):
@@ -293,6 +338,8 @@ def process_single_song(driver, song, songs_dir):
                     # Check for the exact expected file
                     if expected_filepath.exists():
                         logger.info(f"✓ Download completed: {expected_filename}")
+                        # Get the duration of the downloaded MP3
+                        duration = get_mp3_duration(expected_filepath)
                         return True
 
                     # Check for any MP3 files that might have been downloaded with different names
@@ -314,9 +361,13 @@ def process_single_song(driver, song, songs_dir):
                                 logger.info(
                                     f"✓ Renamed {downloaded_file.name} to {expected_filename}"
                                 )
+                                # Get the duration of the renamed MP3
+                                duration = get_mp3_duration(expected_filepath)
                                 return True
                             except Exception as e:
                                 logger.warning(f"⚠ Could not rename file: {e}")
+                                # Get duration of the original file
+                                duration = get_mp3_duration(downloaded_file)
                                 return True  # Still consider it successful since we found the file
 
                     # Check for any files in the download directory (debugging)
