@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-palette-magenta: #f26d85;
+  --color-palette-pink: #f28d8d;
+  --color-palette-coral: #f29f8d;
+  --color-palette-teal: #62d9c3;
+  --color-palette-cyan: #b6f2e6;
+  --color-palette-charcoal: #222222;
+  --color-palette-graphite: #2c2c2c;
+
+  --font-family-courier: "Courier Prime", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+html,
+body {
+  background-color: var(--color-palette-cyan);
+  font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #222222;
+}

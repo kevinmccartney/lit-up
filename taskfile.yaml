@@ -1,0 +1,56 @@
+version: 3
+
+tasks:
+  app:dev:
+    cmd: |
+      npm run dev
+  app:build:
+    cmd: |
+      npm run build
+  app:preview:
+    cmd: |
+      npm run preview
+  app:deploy:
+    cmds:
+      - task: app:build
+      - |
+        echo "🚀 Deploying React app to S3..."
+        # Get the S3 bucket name from Terraform outputs
+        BUCKET_NAME=$(cd infra && terraform output -raw s3_bucket_name)
+        if [ -z "$BUCKET_NAME" ]; then
+          echo "❌ Error: Could not get S3 bucket name from Terraform outputs"
+          echo "Make sure you've run 'task infra:apply' first"
+          exit 1
+        fi
+        echo "📦 Deploying to bucket: $BUCKET_NAME"
+        # Sync the built React app to S3
+        aws s3 sync dist/ s3://$BUCKET_NAME --delete
+        if [ $? -eq 0 ]; then
+          echo "✅ Deployment successful!"
+          echo "🌐 Your app is available at: $(cd infra && terraform output -raw website_url)"
+        else
+          echo "❌ Deployment failed"
+          exit 1
+        fi
+  env:init:
+    cmd: |
+      set -a; source infra/.env; set +a
+  infra:init:
+    cmds:
+      - task: env:init
+      - |
+        terraform init -reconfigure \
+          -backend-config="bucket=$TF_STATE_BUCKET" \
+          -backend-config="key=$TF_STATE_KEY" \
+          -backend-config="region=$TF_STATE_REGION" \
+          -backend-config="dynamodb_table=$TF_STATE_DYNAMODB_TABLE" \
+          -backend-config="encrypt=true"
+  infra:plan:
+    cmd: |
+      cd infra && terraform plan
+  infra:apply:
+    cmd: |
+      cd infra && terraform apply
+  infra:destroy:
+    cmd: |
+      cd infra && terraform destroy
