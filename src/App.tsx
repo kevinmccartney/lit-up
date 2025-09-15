@@ -173,6 +173,7 @@ function App(): JSX.Element {
               autoPlay={autoPlay}
               onPrevious={handlePrevious}
               onNext={handleNext}
+              onEnded={handleNext}
               hasPrevious={getCurrentTrackIndex() > 0}
               hasNext={getCurrentTrackIndex() < tracks.length - 1}
               className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0"

@@ -15,6 +15,7 @@ interface MediaPlayerProps {
   autoPlay?: boolean;
   onPrevious?: () => void;
   onNext?: () => void;
+  onEnded?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
   className?: string;
@@ -38,6 +39,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       autoPlay = false,
       onPrevious,
       onNext,
+      onEnded,
       hasPrevious = false,
       hasNext = false,
       className = "",
@@ -109,6 +111,9 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
           setInternalIsPlaying(false);
         }
         setCurrentTime(0);
+        if (onEnded) {
+          onEnded();
+        }
       };
 
       audio.addEventListener("loadedmetadata", handleLoadedMetadata);
