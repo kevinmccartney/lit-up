@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
 import MediaLibrary, { Track } from "./components/MediaLibrary";
 import { useTracks } from "./hooks/useTracks";
 import { Heart } from "lucide-react";
+import ThemePicker from "./components/ThemePicker";
 
 function App(): JSX.Element {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -42,41 +43,60 @@ function App(): JSX.Element {
     loadTracksData();
   }, []);
 
-  const handleTrackSelect = (track: Track) => {
+  // Update the browser tab title to reflect the currently playing song
+  useEffect(() => {
+    const baseTitle = "Lit Up";
+
+    // Determine which track is effectively playing (secret track takes precedence when meadow is shown)
+    const activeSecret = showMeadow && secretTrackPlaying && secretTrack;
+    const activeTrack = activeSecret ? secretTrack : selectedTrack;
+
+    if (activeTrack) {
+      const artist = (activeTrack as any).artist
+        ? ` — ${(activeTrack as any).artist}`
+        : "";
+      document.title = `${baseTitle} | ${activeTrack.title}${artist}`;
+    } else {
+      document.title = baseTitle;
+    }
+  }, [selectedTrack, isPlaying, showMeadow, secretTrackPlaying, secretTrack]);
+
+  const handleTrackSelect = useCallback((track: Track) => {
     setSelectedTrack(track);
     setAutoPlay(true); // Enable auto-play for new track selection
     setIsPlaying(true); // Start playing when selecting a new track
 
     // Reset auto-play after a brief delay to prevent it from affecting subsequent loads
     setTimeout(() => setAutoPlay(false), 100);
-  };
+  }, []);
 
-  const getCurrentTrackIndex = () => {
+  const getCurrentTrackIndex = useCallback(() => {
     if (!selectedTrack) return -1;
     return tracks.findIndex((track) => track.id === selectedTrack.id);
-  };
+  }, [tracks, selectedTrack]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     const currentIndex = getCurrentTrackIndex();
-    if (currentIndex > 0) {
-      const previousTrack = tracks[currentIndex - 1];
-      handleTrackSelect(previousTrack);
-    }
-  };
+    if (tracks.length === 0) return;
+    const previousIndex =
+      currentIndex > 0 ? currentIndex - 1 : tracks.length - 1;
+    const previousTrack = tracks[previousIndex];
+    handleTrackSelect(previousTrack);
+  }, [tracks, getCurrentTrackIndex, handleTrackSelect]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     const currentIndex = getCurrentTrackIndex();
-    if (currentIndex < tracks.length - 1) {
-      const nextTrack = tracks[currentIndex + 1];
-      handleTrackSelect(nextTrack);
-    }
-  };
+    if (tracks.length === 0) return;
+    const nextIndex = currentIndex < tracks.length - 1 ? currentIndex + 1 : 0;
+    const nextTrack = tracks[nextIndex];
+    handleTrackSelect(nextTrack);
+  }, [tracks, getCurrentTrackIndex, handleTrackSelect]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     setIsPlaying(!isPlaying);
-  };
+  }, [isPlaying]);
 
-  const handleHeartClick = () => {
+  const handleHeartClick = useCallback(() => {
     if (!showMeadow && secretTrack) {
       // Show meadow and start playing secret track
       setShowMeadow(true);
@@ -96,9 +116,9 @@ function App(): JSX.Element {
         setMainPlayerPaused(false);
       }
     }
-  };
+  }, [showMeadow, secretTrack, isPlaying, mainPlayerPaused]);
 
-  const handleMeadowClick = () => {
+  const handleMeadowClick = useCallback(() => {
     setShowMeadow(false);
     setSecretTrackPlaying(false);
     // Resume main player if it was paused
@@ -106,7 +126,99 @@ function App(): JSX.Element {
       mainPlayerRef.current.play();
       setMainPlayerPaused(false);
     }
-  };
+  }, [mainPlayerPaused]);
+
+  // Handle media key events (play/pause, forward, back buttons on keyboard)
+  useEffect(() => {
+    const handleMediaKeyDown = (event: KeyboardEvent) => {
+      // Check for media keys
+      switch (event.code) {
+        case "MediaPlayPause":
+        case "F8": // Mac play/pause key
+          event.preventDefault();
+          handlePlayPause();
+          break;
+        case "MediaTrackNext":
+        case "F10": // Mac forward key
+          event.preventDefault();
+          handleNext();
+          break;
+        case "MediaTrackPrevious":
+        case "F9": // Mac back key
+          event.preventDefault();
+          handlePrevious();
+          break;
+      }
+    };
+
+    // Also listen for the older keyCode events for broader compatibility
+    const handleLegacyMediaKeys = (event: KeyboardEvent) => {
+      switch (event.keyCode) {
+        case 179: // MediaPlayPause
+        case 179: // F8 equivalent
+          event.preventDefault();
+          handlePlayPause();
+          break;
+        case 176: // MediaTrackNext
+        case 176: // F10 equivalent
+          event.preventDefault();
+          handleNext();
+          break;
+        case 177: // MediaTrackPrevious
+        case 177: // F9 equivalent
+          event.preventDefault();
+          handlePrevious();
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleMediaKeyDown);
+    document.addEventListener("keydown", handleLegacyMediaKeys);
+
+    return () => {
+      document.removeEventListener("keydown", handleMediaKeyDown);
+      document.removeEventListener("keydown", handleLegacyMediaKeys);
+    };
+  }, [handlePlayPause, handleNext, handlePrevious]);
+
+  // Set up Media Session API for proper media key handling
+  useEffect(() => {
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.setActionHandler("play", () => {
+        handlePlayPause();
+      });
+
+      navigator.mediaSession.setActionHandler("pause", () => {
+        handlePlayPause();
+      });
+
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        handlePrevious();
+      });
+
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        handleNext();
+      });
+    }
+  }, [handlePlayPause, handleNext, handlePrevious]);
+
+  // Update Media Session metadata when track changes
+  useEffect(() => {
+    if ("mediaSession" in navigator && selectedTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: selectedTrack.title,
+        artist: (selectedTrack as any).artist || "Unknown Artist",
+        album: "Lit Up",
+        artwork: [
+          {
+            src: selectedTrack.cover,
+            sizes: "512x512",
+            type: "image/jpeg",
+          },
+        ],
+      });
+    }
+  }, [selectedTrack]);
 
   // Show loading state while tracks are being loaded
   if (isLoading) {
@@ -134,9 +246,7 @@ function App(): JSX.Element {
         </header>
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-palette-coral">
-              No tracks found. Please check your configuration.
-            </p>
+            <p>No tracks found. Please check your configuration.</p>
           </div>
         </main>
       </div>
@@ -145,10 +255,13 @@ function App(): JSX.Element {
 
   return (
     <div className="h-screen flex flex-col bg-palette-cyan">
-      <header className="p-4 flex-shrink-0 marquee">
-        <h1 className="text-2xl font-bold">♍️ Happy Birthday Sarah!! 🥳</h1>
+      <header className="p-4 flex-shrink-0 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 marquee">
+          <h1 className="text-2xl font-bold">♍️ Happy Birthday Sarah!! 🥳</h1>
+        </div>
+        <ThemePicker className="w-full md:w-auto justify-end" />
       </header>
-      <main className="flex-1 flex flex-col md:flex-row gap-4 p-4 min-h-0">
+      <main className="flex-1 flex flex-col md:flex-row gap-4 px-4 min-h-0">
         {/* Main interface - hidden when meadow is shown */}
         <div
           className={`flex-1 flex flex-col md:flex-row gap-4 min-h-0 ${
@@ -174,9 +287,9 @@ function App(): JSX.Element {
               onPrevious={handlePrevious}
               onNext={handleNext}
               onEnded={handleNext}
-              hasPrevious={getCurrentTrackIndex() > 0}
-              hasNext={getCurrentTrackIndex() < tracks.length - 1}
-              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0"
+              hasPrevious={tracks.length > 1}
+              hasNext={tracks.length > 1}
+              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0 md:self-start"
               isPlaying={isPlaying}
               onPlayPause={handlePlayPause}
             />
@@ -205,7 +318,7 @@ function App(): JSX.Element {
           </div>
         )}
       </main>
-      <footer className="p-4 flex-shrink-0 text-sm text-center">
+      <footer className="p-2 flex-shrink-0 text-sm text-center">
         <p className="flex items-center justify-center gap-2">
           Built with{" "}
           <span

@@ -202,7 +202,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
     return (
       <div
         className={cn(
-          "border-palette-coral border-2 rounded-2xl p-4 md:p-8 flex flex-col gap-4 md:gap-6 bg-white/25 min-h-0",
+          "border-palette-coral border-2 rounded-2xl p-4 md:p-8 flex flex-col sm:flex-row lg:flex-col gap-4 md:gap-6 bg-white/25 min-h-0",
           className
         )}
       >
@@ -213,7 +213,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
             <img
               src={`${cover}`}
               alt={`${title} cover`}
-              className="w-32 h-32 md:w-72 md:h-72 rounded-xl object-cover"
+              className="w-32 h-32 lg:w-72 lg:h-72 rounded-xl object-cover"
               onError={(e) => {
                 // Hide image if it fails to load
                 (e.target as HTMLImageElement).style.display = "none";
@@ -222,12 +222,14 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
           </div>
         )}
 
-        <div className="flex flex-col justify-center items-center flex-1">
-          <div className="flex flex-col justify-center items-center">
-            <h3 className="m-0 text-lg md:text-2xl font-semibold">{title}</h3>
+        <div className="flex flex-col justify-center items-center flex-1 w-full">
+          <div className="flex flex-col justify-center items-center sm:items-start md:items-center w-full">
+            <h3 className="m-0 text-lg md:text-2xl font-semibold text-center">
+              {title}
+            </h3>
             <div className="flex flex-row justify-center items-center gap-5">
               <button
-                className="bg-white/15 border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-palette-coral"
+                className="border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-palette-coral"
                 onClick={onPrevious}
                 disabled={!hasPrevious || isLoading}
                 title="Previous track"
@@ -236,7 +238,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
               </button>
 
               <button
-                className="bg-white/20 border-0 rounded-full w-18 h-18 text-4xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed text-palette-coral"
+                className="border-0 rounded-full w-18 h-18 text-4xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed text-palette-coral"
                 onClick={togglePlayPause}
                 disabled={isLoading}
               >
@@ -252,7 +254,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
               </button>
 
               <button
-                className="bg-white/15 border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-palette-coral"
+                className="border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-palette-coral"
                 onClick={onNext}
                 disabled={!hasNext || isLoading}
                 title="Next track"
@@ -262,7 +264,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
             </div>
           </div>
 
-          <div className="mt-5 w-full">
+          <div className="mt-2 md:mt-5 w-full">
             <div
               className="bg-palette-coral/20 h-2 rounded-sm overflow-hidden mb-2 backdrop-blur-sm cursor-pointer transition-all duration-300 relative hover:bg-palette-coral/30 hover:h-2.5 hover:-translate-y-0.5 active:translate-y-0"
               onClick={handleProgressBarClick}

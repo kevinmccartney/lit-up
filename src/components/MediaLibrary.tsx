@@ -30,12 +30,12 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   onPlayPause,
 }) => {
   return (
-    <div className={cn("flex flex-col gap-2.5 p-5 min-h-0", className)}>
+    <div className={cn("flex flex-col gap-2.5 p-5 px-8 min-h-0", className)}>
       {tracks.map((track) =>
         track.isSecret ? null : (
           <div
             key={track.id}
-            className={`flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 border-2 border-palette-coral hover:translate-x-1 gap-4 ${
+            className={`flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 border-2 border-palette-coral hover:scale-[1.075] gap-4 ${
               selectedTrack?.id === track.id
                 ? "bg-white/25 border-palette-coral scale-[1.075] my-1"
                 : ""
@@ -60,7 +60,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               )}
             </div>
             <div className="flex items-center">
-              {selectedTrack?.id === track.id && (
+              {selectedTrack?.id === track.id && isPlaying && (
                 <div
                   className={cn(
                     "flex items-center text-palette-coral",

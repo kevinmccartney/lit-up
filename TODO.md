@@ -6,5 +6,7 @@
 - [x] Load songs
 - [x] Determine track length from file
 - [x] Play next song when last one ends
-- [ ] Refine design
-- [ ] Easter zhuzh up (make it move or something?)
+- [x] Dynamic title
+- [x] Finalize layout
+- [x] Favicon
+- [ ] Create themes
