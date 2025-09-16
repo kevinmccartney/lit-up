@@ -35,9 +35,9 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
         track.isSecret ? null : (
           <div
             key={track.id}
-            className={`flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 border-2 border-palette-coral hover:scale-[1.075] gap-4 ${
+            className={`flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 border-2 border-[var(--theme-primary)] hover:scale-[1.075] hover:border-[var(--theme-secondary)] gap-4 ${
               selectedTrack?.id === track.id
-                ? "bg-white/25 border-palette-coral scale-[1.075] my-1"
+                ? "bg-[var(--theme-tertiary)] border-[var(--theme-secondary)] scale-[1.075] my-1"
                 : ""
             }`}
             onClick={() => {
@@ -63,7 +63,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               {selectedTrack?.id === track.id && isPlaying && (
                 <div
                   className={cn(
-                    "flex items-center text-palette-coral",
+                    "flex items-center text-[var(--theme-secondary)]",
                     isPlaying && "animate-pulse"
                   )}
                 >

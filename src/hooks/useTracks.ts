@@ -1,5 +1,11 @@
 import { Track } from "../components/MediaLibrary";
 
+export type AppConfig = {
+  tracks: Track[];
+  buildDatetime?: string;
+  buildHash?: string;
+};
+
 // Load tracks from the generated appConfig.json
 // This file is generated from song_list.yaml during the build process
 export const useTracks = async (): Promise<Track[]> => {
@@ -8,7 +14,7 @@ export const useTracks = async (): Promise<Track[]> => {
     if (!response.ok) {
       throw new Error(`Failed to load app config: ${response.statusText}`);
     }
-    const config = await response.json();
+    const config: AppConfig = await response.json();
     return config.tracks || [];
   } catch (error) {
     console.error("Error loading tracks from appConfig.json:", error);

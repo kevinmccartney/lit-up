@@ -30,6 +30,22 @@ tasks:
         # Sync the built React app to S3
         aws s3 sync dist/ s3://$BUCKET_NAME --delete
         if [ $? -eq 0 ]; then
+          echo "✅ S3 sync successful!"
+          
+          # Get CloudFront distribution ID and invalidate cache
+          DISTRIBUTION_ID=$(cd infra && terraform output -raw cloudfront_distribution_id)
+          if [ -n "$DISTRIBUTION_ID" ]; then
+            echo "🔄 Invalidating CloudFront cache..."
+            aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+            if [ $? -eq 0 ]; then
+              echo "✅ CloudFront invalidation successful!"
+            else
+              echo "⚠️  CloudFront invalidation failed, but deployment was successful"
+            fi
+          else
+            echo "⚠️  Could not get CloudFront distribution ID, skipping invalidation"
+          fi
+          
           echo "✅ Deployment successful!"
           echo "🌐 Your app is available at: $(cd infra && terraform output -raw website_url)"
         else
@@ -38,7 +54,7 @@ tasks:
         fi
   env:init:
     cmd: |
-      set -a; source infra/.env; set +a
+      set -a; source .env; set +a
   infra:init:
     cmds:
       - task: env:init

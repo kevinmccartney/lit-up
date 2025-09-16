@@ -2,27 +2,76 @@
 
 @theme {
   --color-palette-magenta: #f26d85;
+  --color-palette-magenta-light: #f58ba0;
+  --color-palette-magenta-dark: #d55a73;
   --color-palette-pink: #f28d8d;
+  --color-palette-pink-light: #f5a3a3;
+  --color-palette-pink-dark: #d17a7a;
   --color-palette-coral: #f29f8d;
+  --color-palette-coral-light: #f5b6a3;
+  --color-palette-coral-dark: #d18a7a;
   --color-palette-teal: #62d9c3;
+  --color-palette-teal-light: #8de3d1;
+  --color-palette-teal-dark: #4bc2a8;
   --color-palette-cyan: #b6f2e6;
+  --color-palette-cyan-light: #d1f5f0;
+  --color-palette-cyan-dark: #8dd9d1;
   --color-palette-charcoal: #222222;
-  --color-palette-graphite: #2c2c2c;
-
-  --font-family-courier: "Courier Prime", ui-monospace, SFMono-Regular, Menlo,
-    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --color-palette-charcoal-light: #444444;
+  --color-palette-charcoal-dark: #111111;
 }
 
 html,
 body {
-  background-color: var(--color-palette-cyan);
+  color: var(--color-palette-charcoal);
   font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
-  color: #222222;
+  /* Default to standard viewport height */
+  height: 100vh;
+  margin: 0; /* Remove default body margin to allow full-bleed layout */
+  width: 100%; /* Use percentage to avoid iOS 100vw issues */
+  max-width: 100%;
+  overflow: hidden; /* Prevent vertical scrolling on the body */
+  overflow-x: hidden; /* Prevent horizontal scroll/gutters */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Use dynamic viewport height only on mobile devices in portrait mode */
+@media (max-width: 768px) and (orientation: portrait) {
+  html,
+  body {
+    height: 100dvh; /* Dynamic viewport height for mobile portrait */
+  }
+}
+
+/* Ensure the app container takes full viewport */
+#root {
+  height: 100vh;
+  width: 100%; /* Match viewport width without causing overflow */
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Use dynamic viewport height only on mobile devices in portrait mode */
+@media (max-width: 768px) and (orientation: portrait) {
+  #root {
+    height: 100dvh; /* Dynamic viewport height for mobile portrait */
+  }
+}
+
+/* Custom class for mobile portrait viewport height */
+.h-screen-mobile-portrait {
+  height: 100vh;
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .h-screen-mobile-portrait {
+    height: 100dvh; /* Dynamic viewport height for mobile portrait */
+  }
 }
 
 .marquee {
-  width: 85%; /* limit width */
   overflow: hidden; /* hide overflow */
   white-space: nowrap; /* keep text in one line */
   margin: 0 auto;

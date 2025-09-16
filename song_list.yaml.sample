@@ -6,7 +6,7 @@ songs:
     albumArtUrl: "https://example.com/album-art-1.jpg"
     title: "Song Title 1"
     artist: "Artist Name 1"
-    duration: "3:45"
+    duration: "3:45" # you can fill out duration, but it also will be dynamically set during song processing
     isSecret: false
   - url: "https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
     id: "unique-song-id-2"

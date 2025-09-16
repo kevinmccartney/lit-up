@@ -2,10 +2,12 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
 import MediaLibrary, { Track } from "./components/MediaLibrary";
 import { useTracks } from "./hooks/useTracks";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { Heart } from "lucide-react";
 import ThemePicker from "./components/ThemePicker";
+import DevBuildInfo from "./components/DevBuildInfo";
 
-function App(): JSX.Element {
+function AppContent(): JSX.Element {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
@@ -15,17 +17,49 @@ function App(): JSX.Element {
   const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [mainPlayerPaused, setMainPlayerPaused] = useState<boolean>(false);
+  const [buildInfo, setBuildInfo] = useState<{
+    buildDatetime?: string;
+    buildHash?: string;
+  }>({});
   const mainPlayerRef = useRef<MediaPlayerRef>(null);
+  const { theme, primaryColor, secondaryColor, tertiaryColor } = useTheme();
   const secretTrack = useMemo(
     () => allTracks.find((track) => track.isSecret) ?? null,
     [allTracks]
   );
 
+  useEffect(() => {
+    console.log(theme);
+  }, [theme]);
+
+  // Create dynamic CSS custom properties for theme colors
+  const themeStyles = useMemo(() => {
+    return {
+      "--theme-primary": primaryColor,
+      "--theme-secondary": secondaryColor,
+      "--theme-tertiary": tertiaryColor,
+    } as React.CSSProperties;
+  }, [primaryColor, secondaryColor, tertiaryColor]);
+
   // Load tracks from appConfig.json on component mount
   useEffect(() => {
     const loadTracksData = async () => {
       try {
+        // Load tracks
         const loadedTracks = await useTracks();
+        // Also fetch build info
+        try {
+          const res = await fetch("/appConfig.json");
+          if (res.ok) {
+            const cfg = await res.json();
+            setBuildInfo({
+              buildDatetime: cfg.buildDatetime,
+              buildHash: cfg.buildHash,
+            });
+          }
+        } catch (e) {
+          // ignore build info errors
+        }
         setAllTracks(loadedTracks);
         // Filter out secret tracks from the main tracks list
         const publicTracks = loadedTracks.filter((track) => !track.isSecret);
@@ -41,6 +75,11 @@ function App(): JSX.Element {
     };
 
     loadTracksData();
+  }, []);
+
+  const isDevOverlayEnabled = useMemo(() => {
+    const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
+    return flag === "true" || flag === "1" || import.meta.env.DEV;
   }, []);
 
   // Update the browser tab title to reflect the currently playing song
@@ -154,18 +193,15 @@ function App(): JSX.Element {
     // Also listen for the older keyCode events for broader compatibility
     const handleLegacyMediaKeys = (event: KeyboardEvent) => {
       switch (event.keyCode) {
-        case 179: // MediaPlayPause
-        case 179: // F8 equivalent
+        case 179: // MediaPlayPause or F8 equivalent
           event.preventDefault();
           handlePlayPause();
           break;
-        case 176: // MediaTrackNext
-        case 176: // F10 equivalent
+        case 176: // MediaTrackNext or F10 equivalent
           event.preventDefault();
           handleNext();
           break;
-        case 177: // MediaTrackPrevious
-        case 177: // F9 equivalent
+        case 177: // MediaTrackPrevious or F9 equivalent
           event.preventDefault();
           handlePrevious();
           break;
@@ -223,27 +259,20 @@ function App(): JSX.Element {
   // Show loading state while tracks are being loaded
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col bg-palette-cyan">
-        <header className="p-4 flex-shrink-0">
-          <h1 className="text-2xl font-bold">✨ Lit Up</h1>
-        </header>
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-palette-coral mx-auto mb-4"></div>
-            <p className="text-palette-coral">Loading your music library...</p>
-          </div>
-        </main>
-      </div>
+      <div
+        className="flex flex-col bg-[var(--theme-primary)] h-screen-mobile-portrait"
+        style={themeStyles}
+      ></div>
     );
   }
 
   // Show empty state if no tracks are loaded
   if (tracks.length === 0) {
     return (
-      <div className="h-screen flex flex-col bg-palette-cyan">
-        <header className="p-4 flex-shrink-0">
-          <h1 className="text-2xl font-bold">✨ Lit Up</h1>
-        </header>
+      <div
+        className="flex flex-col bg-[var(--theme-primary)] h-screen-mobile-portrait"
+        style={themeStyles}
+      >
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p>No tracks found. Please check your configuration.</p>
@@ -254,17 +283,30 @@ function App(): JSX.Element {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-palette-cyan">
-      <header className="p-4 flex-shrink-0 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center justify-between gap-4 marquee">
-          <h1 className="text-2xl font-bold">♍️ Happy Birthday Sarah!! 🥳</h1>
+    <div
+      className="flex flex-col bg-[var(--theme-primary)] h-screen-mobile-portrait"
+      style={themeStyles}
+    >
+      <header
+        className={`flex-shrink-0 flex flex-col md:flex-row justify-between gap-2 md:gap-0 md:mb-4`}
+      >
+        <div
+          className={`py-2 bg-[var(--theme-tertiary)] w-full border-b-2 border-[var(--theme-secondary)]`}
+        >
+          <div className="flex items-center justify-between gap-4 marquee w-full md:w-11/12">
+            <h1 className="text-2xl font-bold">
+              ♍️ Happy Birthday Sarah!! 🥳
+            </h1>
+          </div>
         </div>
-        <ThemePicker className="w-full md:w-auto justify-end" />
+        <ThemePicker
+          className={`w-full md:w-auto justify-end p-4 md:p-2 md:bg-[var(--theme-tertiary)] md:border-b-2 md:border-[var(--theme-secondary)]`}
+        />
       </header>
-      <main className="flex-1 flex flex-col md:flex-row gap-4 px-4 min-h-0">
+      <main className="flex-1 flex flex-col md:gap-4 px-0 md:px-4 min-h-0 sm:overflow-y-auto md:overflow-y-hidden">
         {/* Main interface - hidden when meadow is shown */}
         <div
-          className={`flex-1 flex flex-col md:flex-row gap-4 min-h-0 ${
+          className={`flex-1 flex flex-col md:flex-row md:gap-4 min-h-0 ${
             showMeadow ? "hidden" : ""
           }`}
         >
@@ -272,7 +314,7 @@ function App(): JSX.Element {
             tracks={tracks}
             onTrackSelect={handleTrackSelect}
             selectedTrack={selectedTrack}
-            className="order-2 md:order-1 md:w-80 md:flex-shrink-0 overflow-y-auto flex-1 md:flex-none"
+            className="order-2 md:order-1 md:w-80 md:flex-shrink-0 overflow-y-auto sm:overflow-y-visible md:overflow-y-auto flex-1 md:flex-none px-4 md:px-0"
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
           />
@@ -289,7 +331,7 @@ function App(): JSX.Element {
               onEnded={handleNext}
               hasPrevious={tracks.length > 1}
               hasNext={tracks.length > 1}
-              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0 md:self-start"
+              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0 md:self-start px-4 md:px-0"
               isPlaying={isPlaying}
               onPlayPause={handlePlayPause}
             />
@@ -305,7 +347,7 @@ function App(): JSX.Element {
             <img
               src={secretTrack.cover}
               alt="Meadow"
-              className="w-full h-full object-contain"
+              className="object-contain"
             />
             {/* Hidden audio element for secret track */}
             <audio
@@ -318,19 +360,39 @@ function App(): JSX.Element {
           </div>
         )}
       </main>
-      <footer className="p-2 flex-shrink-0 text-sm text-center">
+      <footer
+        className={`p-2 flex-shrink-0 text-sm text-center bg-[var(--theme-tertiary)] border-t-2 border-[var(--theme-secondary)]`}
+      >
         <p className="flex items-center justify-center gap-2">
           Built with{" "}
           <span
-            className="transition-all duration-300 hover:scale-125 hover:text-palette-pink text-palette-coral cursor-pointer"
+            className={`transition-all duration-300 hover:scale-125 hover:text-red-500 text-[var(--theme-secondary)] cursor-pointer`}
             onClick={handleHeartClick}
           >
             <Heart fill="currentColor" stroke="currentColor" size={16} />
           </span>
           by HK
         </p>
+        {isDevOverlayEnabled &&
+          buildInfo.buildDatetime &&
+          buildInfo.buildHash && (
+            <div className="mt-2 flex justify-center absolute bottom-0 right-0">
+              <DevBuildInfo
+                buildDatetime={buildInfo.buildDatetime}
+                buildHash={buildInfo.buildHash}
+              />
+            </div>
+          )}
       </footer>
     </div>
+  );
+}
+
+function App(): JSX.Element {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
