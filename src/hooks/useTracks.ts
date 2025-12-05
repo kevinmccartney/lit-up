@@ -1,9 +1,26 @@
 import { Track } from "../components/MediaLibrary";
 
+export type TrackTiming = {
+  id: string;
+  title: string;
+  artist: string;
+  startTime: number;
+  endTime: number;
+  duration: number;
+};
+
+export type ConcatenatedPlaylist = {
+  enabled: boolean;
+  file: string;
+  tracks: TrackTiming[];
+  totalDuration: number;
+};
+
 export type AppConfig = {
   tracks: Track[];
   buildDatetime?: string;
   buildHash?: string;
+  concatenatedPlaylist?: ConcatenatedPlaylist;
 };
 
 // Load tracks from the generated appConfig.json

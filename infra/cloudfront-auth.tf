@@ -18,6 +18,50 @@ resource "aws_cloudfront_distribution" "static_site" {
     response_page_path = "/index.html"
   }
 
+  # Cache behavior for PWA files (no authentication required)
+  ordered_cache_behavior {
+    path_pattern           = "/manifest.json"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.static_site.bucket}"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+
+    # No Lambda@Edge authentication for PWA manifest
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+  }
+
+  # Cache behavior for service worker (no authentication required)
+  ordered_cache_behavior {
+    path_pattern           = "/sw.js"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-${aws_s3_bucket.static_site.bucket}"
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+
+    # No Lambda@Edge authentication for service worker
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0 # Don't cache service worker to ensure updates
+    max_ttl     = 0
+  }
+
   default_cache_behavior {
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods         = ["GET", "HEAD"]

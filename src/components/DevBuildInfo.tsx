@@ -1,5 +1,3 @@
-import React from "react";
-
 type DevBuildInfoProps = {
   buildDatetime: string;
   buildHash: string;

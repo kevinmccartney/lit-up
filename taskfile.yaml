@@ -5,6 +5,7 @@ tasks:
     cmds:
       - task: songs:process
       - task: config:generate
+      - task: playlist:concatenate
       - npm run dev
   app:build:
     cmd: |
@@ -16,6 +17,7 @@ tasks:
     cmds:
       - task: songs:process
       - task: config:generate
+      - task: playlist:concatenate
       - task: app:build
       - |
         echo "🚀 Deploying React app to S3..."
@@ -119,6 +121,18 @@ tasks:
         source venv/bin/activate
         pip install -r requirements.txt -q
         python generate_config.py
+  playlist:concatenate:
+    desc: "Create concatenated audio playlist for iOS lock screen compatibility"
+    cmds:
+      - |
+        echo "🎵 Creating concatenated audio playlist..."
+        cd scripts
+        if [ ! -d "venv" ]; then
+          python -m venv venv
+        fi
+        source venv/bin/activate
+        pip install -r requirements.txt -q
+        python concatenate_audio.py
   songs:analyze:
     desc: "Analyze existing MP3 files and update song_list.yaml with actual durations"
     cmds:

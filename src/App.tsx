@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
 import MediaLibrary, { Track } from "./components/MediaLibrary";
-import { useTracks } from "./hooks/useTracks";
+import { AppConfig, ConcatenatedPlaylist, useTracks } from "./hooks/useTracks";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { Heart } from "lucide-react";
 import ThemePicker from "./components/ThemePicker";
 import DevBuildInfo from "./components/DevBuildInfo";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 function AppContent(): JSX.Element {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -17,6 +18,10 @@ function AppContent(): JSX.Element {
   const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [mainPlayerPaused, setMainPlayerPaused] = useState<boolean>(false);
+  const [concatenatedPlaylist, setConcatenatedPlaylist] =
+    useState<ConcatenatedPlaylist | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  const trackEndTimeoutRef = useRef<number | null>(null);
   const [buildInfo, setBuildInfo] = useState<{
     buildDatetime?: string;
     buildHash?: string;
@@ -47,15 +52,19 @@ function AppContent(): JSX.Element {
       try {
         // Load tracks
         const loadedTracks = await useTracks();
-        // Also fetch build info
+        // Also fetch build info and concatenated playlist data
         try {
           const res = await fetch("/appConfig.json");
           if (res.ok) {
-            const cfg = await res.json();
+            const cfg: AppConfig = await res.json();
             setBuildInfo({
               buildDatetime: cfg.buildDatetime,
               buildHash: cfg.buildHash,
             });
+            // Check for concatenated playlist
+            if (cfg.concatenatedPlaylist && cfg.concatenatedPlaylist.enabled) {
+              setConcatenatedPlaylist(cfg.concatenatedPlaylist);
+            }
           }
         } catch (e) {
           // ignore build info errors
@@ -79,7 +88,7 @@ function AppContent(): JSX.Element {
 
   const isDevOverlayEnabled = useMemo(() => {
     const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
-    return flag === "true" || flag === "1" || import.meta.env.DEV;
+    return flag === "true" || flag === "1";
   }, []);
 
   // Update the browser tab title to reflect the currently playing song
@@ -107,6 +116,13 @@ function AppContent(): JSX.Element {
 
     // Reset auto-play after a brief delay to prevent it from affecting subsequent loads
     setTimeout(() => setAutoPlay(false), 100);
+
+    // Ensure Media Session is updated immediately
+    if ("mediaSession" in navigator) {
+      requestAnimationFrame(() => {
+        navigator.mediaSession.playbackState = "playing";
+      });
+    }
   }, []);
 
   const getCurrentTrackIndex = useCallback(() => {
@@ -114,14 +130,63 @@ function AppContent(): JSX.Element {
     return tracks.findIndex((track) => track.id === selectedTrack.id);
   }, [tracks, selectedTrack]);
 
+  // Helper function to get track timing info from concatenated playlist
+  const getTrackTiming = useCallback(
+    (trackId: string) => {
+      if (!concatenatedPlaylist || !concatenatedPlaylist.tracks) {
+        return null;
+      }
+      return concatenatedPlaylist.tracks.find((t) => t.id === trackId);
+    },
+    [concatenatedPlaylist]
+  );
+
   const handlePrevious = useCallback(() => {
     const currentIndex = getCurrentTrackIndex();
     if (tracks.length === 0) return;
+
+    // Check if we're in the middle of a song (> 3 seconds played)
+    if (mainPlayerRef.current) {
+      const currentTime = mainPlayerRef.current.getCurrentTime();
+      const currentTrackTiming = getTrackTiming(selectedTrack?.id ?? "");
+      const currentTrackTime =
+        currentTime - (currentTrackTiming?.startTime ?? 0);
+      if (currentTrackTime > 3) {
+        // Restart current song
+        if (concatenatedPlaylist && selectedTrack) {
+          // In concatenated playlist mode, restart from the track's start time
+          const trackTiming = getTrackTiming(selectedTrack.id);
+          if (trackTiming && trackTiming.startTime !== undefined) {
+            mainPlayerRef.current.setCurrentTime(trackTiming.startTime);
+          }
+        } else {
+          // In individual track mode, restart from beginning
+          mainPlayerRef.current.setCurrentTime(0);
+        }
+        return;
+      } else {
+        const previousTrack = tracks[currentIndex - 1];
+        const previousTrackTiming = getTrackTiming(previousTrack.id);
+
+        if (previousTrackTiming && previousTrackTiming.endTime !== undefined) {
+          mainPlayerRef.current.setCurrentTime(previousTrackTiming.endTime);
+        }
+      }
+    }
+
+    // Otherwise, go to previous track
     const previousIndex =
       currentIndex > 0 ? currentIndex - 1 : tracks.length - 1;
     const previousTrack = tracks[previousIndex];
     handleTrackSelect(previousTrack);
-  }, [tracks, getCurrentTrackIndex, handleTrackSelect]);
+  }, [
+    tracks,
+    getCurrentTrackIndex,
+    handleTrackSelect,
+    concatenatedPlaylist,
+    selectedTrack,
+    getTrackTiming,
+  ]);
 
   const handleNext = useCallback(() => {
     const currentIndex = getCurrentTrackIndex();
@@ -130,6 +195,27 @@ function AppContent(): JSX.Element {
     const nextTrack = tracks[nextIndex];
     handleTrackSelect(nextTrack);
   }, [tracks, getCurrentTrackIndex, handleTrackSelect]);
+
+  // Handle track end in concatenated playlist mode
+  const handleTrackEnd = useCallback(() => {
+    if (concatenatedPlaylist && !isTransitioning) {
+      // Clear any existing timeout to prevent multiple rapid transitions
+      if (trackEndTimeoutRef.current) {
+        clearTimeout(trackEndTimeoutRef.current);
+      }
+
+      setIsTransitioning(true);
+
+      // Use a longer delay to ensure the track has actually ended
+      trackEndTimeoutRef.current = setTimeout(() => {
+        handleNext();
+        // Reset transition state after a delay
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 300);
+      }, 150);
+    }
+  }, [concatenatedPlaylist, handleNext, isTransitioning]);
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying(!isPlaying);
@@ -221,19 +307,45 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     if ("mediaSession" in navigator) {
       navigator.mediaSession.setActionHandler("play", () => {
+        console.log("Media Session: Play action triggered");
         handlePlayPause();
       });
 
       navigator.mediaSession.setActionHandler("pause", () => {
+        console.log("Media Session: Pause action triggered");
         handlePlayPause();
       });
 
       navigator.mediaSession.setActionHandler("previoustrack", () => {
+        console.log("Media Session: Previous track action triggered");
         handlePrevious();
       });
 
       navigator.mediaSession.setActionHandler("nexttrack", () => {
+        console.log("Media Session: Next track action triggered");
         handleNext();
+      });
+
+      // Add seekbackward and seekforward for better PWA support
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        console.log("Media Session: Seek backward action triggered");
+        if (mainPlayerRef.current) {
+          const currentTime = mainPlayerRef.current.getCurrentTime();
+          const seekTime = Math.max(
+            0,
+            currentTime - (details.seekOffset || 10)
+          );
+          mainPlayerRef.current.setCurrentTime(seekTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        console.log("Media Session: Seek forward action triggered");
+        if (mainPlayerRef.current) {
+          const currentTime = mainPlayerRef.current.getCurrentTime();
+          const seekTime = currentTime + (details.seekOffset || 10);
+          mainPlayerRef.current.setCurrentTime(seekTime);
+        }
       });
     }
   }, [handlePlayPause, handleNext, handlePrevious]);
@@ -241,20 +353,42 @@ function AppContent(): JSX.Element {
   // Update Media Session metadata when track changes
   useEffect(() => {
     if ("mediaSession" in navigator && selectedTrack) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: selectedTrack.title,
-        artist: (selectedTrack as any).artist || "Unknown Artist",
-        album: "Lit Up",
-        artwork: [
-          {
-            src: selectedTrack.cover,
-            sizes: "512x512",
-            type: "image/jpeg",
-          },
-        ],
+      // Use requestAnimationFrame to ensure metadata update doesn't interfere with playback
+      requestAnimationFrame(() => {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: selectedTrack.title,
+          artist: (selectedTrack as any).artist || "Unknown Artist",
+          album: "Lit Up",
+          artwork: [
+            {
+              src: selectedTrack.cover,
+              sizes: "512x512",
+              type: "image/jpeg",
+            },
+          ],
+        });
+
+        // Ensure the playback state is properly set
+        navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
       });
     }
-  }, [selectedTrack]);
+  }, [selectedTrack, isPlaying]);
+
+  // Update Media Session playback state when playing state changes
+  useEffect(() => {
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    }
+  }, [isPlaying]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (trackEndTimeoutRef.current) {
+        clearTimeout(trackEndTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Show loading state while tracks are being loaded
   if (isLoading) {
@@ -314,7 +448,7 @@ function AppContent(): JSX.Element {
             tracks={tracks}
             onTrackSelect={handleTrackSelect}
             selectedTrack={selectedTrack}
-            className="order-2 md:order-1 md:w-80 md:flex-shrink-0 overflow-y-auto sm:overflow-y-visible md:overflow-y-auto flex-1 md:flex-none px-4 md:px-0"
+            className="order-2 md:order-1 md:w-80 md:flex-shrink-0 overflow-y-auto sm:overflow-y-visible md:overflow-y-auto flex-1 md:flex-none px-4"
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
           />
@@ -322,18 +456,35 @@ function AppContent(): JSX.Element {
             <MediaPlayer
               ref={mainPlayerRef}
               key={selectedTrack.id} // Force re-render when track changes
-              src={selectedTrack.src}
+              src={
+                concatenatedPlaylist
+                  ? concatenatedPlaylist.file
+                  : selectedTrack.src
+              }
               title={selectedTrack.title}
               cover={selectedTrack.cover}
               autoPlay={autoPlay}
               onPrevious={handlePrevious}
               onNext={handleNext}
-              onEnded={handleNext}
+              onEnded={concatenatedPlaylist ? undefined : handleNext}
+              onTrackEnd={concatenatedPlaylist ? handleTrackEnd : undefined}
               hasPrevious={tracks.length > 1}
               hasNext={tracks.length > 1}
-              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0 md:self-start px-4 md:px-0"
+              className="order-1 md:order-2 flex-shrink-0 md:flex-1 min-h-0 md:self-start px-4 mx-4"
               isPlaying={isPlaying}
               onPlayPause={handlePlayPause}
+              // Concatenated playlist props
+              playlistMode={!!concatenatedPlaylist}
+              trackStartTime={
+                concatenatedPlaylist
+                  ? getTrackTiming(selectedTrack.id)?.startTime
+                  : undefined
+              }
+              trackEndTime={
+                concatenatedPlaylist
+                  ? getTrackTiming(selectedTrack.id)?.endTime
+                  : undefined
+              }
             />
           )}
         </div>
@@ -384,6 +535,9 @@ function AppContent(): JSX.Element {
             </div>
           )}
       </footer>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }

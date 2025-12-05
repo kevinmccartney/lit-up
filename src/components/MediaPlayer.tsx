@@ -22,6 +22,11 @@ interface MediaPlayerProps {
   className?: string;
   isPlaying?: boolean;
   onPlayPause?: () => void;
+  // Concatenated playlist support
+  playlistMode?: boolean;
+  trackStartTime?: number;
+  trackEndTime?: number;
+  onTrackEnd?: () => void;
 }
 
 export interface MediaPlayerRef {
@@ -46,6 +51,11 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       className = "",
       isPlaying: externalIsPlaying,
       onPlayPause,
+      // Concatenated playlist support
+      playlistMode = false,
+      trackStartTime = 0,
+      trackEndTime,
+      onTrackEnd,
     },
     ref
   ) => {
@@ -59,7 +69,13 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
     const [duration, setDuration] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const { primaryColor, secondaryColor, tertiaryColor } = useTheme();
+    const trackEndCheckIntervalRef = useRef<number | null>(null);
+    const lastTrackEndCheckRef = useRef<number>(0);
+    useTheme(); // For theme context
+
+    // Calculate effective duration for playlist mode
+    const effectiveDuration =
+      playlistMode && trackEndTime ? trackEndTime - trackStartTime : duration;
 
     // Expose audio control methods to parent component
     useImperativeHandle(ref, () => ({
@@ -97,6 +113,15 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
 
         // Auto-play if requested
         if (autoPlay) {
+          // For PWA, attempt to resume AudioContext if available (non-standard)
+          // @ts-ignore: context is not standard on HTMLAudioElement
+          if (
+            (audio as any).context &&
+            (audio as any).context.state === "suspended"
+          ) {
+            // @ts-ignore
+            (audio as any).context.resume();
+          }
           audio.play();
           if (externalIsPlaying === undefined) {
             setInternalIsPlaying(true);
@@ -105,7 +130,22 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       };
 
       const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
+        if (playlistMode) {
+          // In playlist mode, show relative time within the track
+          const absoluteTime = audio.currentTime;
+          const relativeTime = Math.max(0, absoluteTime - trackStartTime);
+          setCurrentTime(relativeTime);
+
+          // Check if we've reached the end of this track
+          // Only trigger when we're very close to the end (within 0.05s) to avoid early transitions
+          if (trackEndTime && absoluteTime >= trackEndTime - 0.05) {
+            if (onTrackEnd) {
+              onTrackEnd();
+            }
+          }
+        } else {
+          setCurrentTime(audio.currentTime);
+        }
       };
 
       const handleEnded = () => {
@@ -118,19 +158,82 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         }
       };
 
+      // More reliable track end detection for iOS
+      const handleProgress = () => {
+        if (playlistMode && trackEndTime) {
+          const absoluteTime = audio.currentTime;
+          // Check if we've reached the end of this track
+          if (absoluteTime >= trackEndTime - 0.05) {
+            if (onTrackEnd) {
+              onTrackEnd();
+            }
+          }
+        }
+      };
+
       audio.addEventListener("loadedmetadata", handleLoadedMetadata);
       audio.addEventListener("timeupdate", handleTimeUpdate);
       audio.addEventListener("ended", handleEnded);
+      audio.addEventListener("progress", handleProgress);
+
+      // Set up reliable track end detection for locked/backgrounded devices
+      // This uses polling which works even when timeupdate is throttled
+      if (playlistMode && trackEndTime && onTrackEnd) {
+        const checkTrackEnd = () => {
+          const absoluteTime = audio.currentTime;
+          // Only check if we're close to the end and haven't already triggered
+          // This prevents multiple rapid triggers
+          if (
+            absoluteTime >= trackEndTime - 0.1 &&
+            absoluteTime < trackEndTime + 0.5 &&
+            Date.now() - lastTrackEndCheckRef.current > 500
+          ) {
+            lastTrackEndCheckRef.current = Date.now();
+            onTrackEnd();
+          }
+        };
+
+        // Poll every 100ms for reliable detection even when backgrounded
+        trackEndCheckIntervalRef.current = window.setInterval(
+          checkTrackEnd,
+          100
+        );
+      }
+
+      // Also check when page becomes visible again (user unlocks phone)
+      const handleVisibilityChange = () => {
+        if (!document.hidden && playlistMode && trackEndTime && onTrackEnd) {
+          const absoluteTime = audio.currentTime;
+          if (absoluteTime >= trackEndTime - 0.1) {
+            onTrackEnd();
+          }
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
 
       return () => {
         audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
         audio.removeEventListener("timeupdate", handleTimeUpdate);
         audio.removeEventListener("ended", handleEnded);
+        audio.removeEventListener("progress", handleProgress);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        if (trackEndCheckIntervalRef.current !== null) {
+          clearInterval(trackEndCheckIntervalRef.current);
+          trackEndCheckIntervalRef.current = null;
+        }
       };
-    }, [autoPlay]);
+    }, [autoPlay, playlistMode, trackEndTime, onTrackEnd, trackStartTime]);
 
     // Reset player state when src changes
     useEffect(() => {
+      // Clear any existing track end check interval
+      if (trackEndCheckIntervalRef.current !== null) {
+        clearInterval(trackEndCheckIntervalRef.current);
+        trackEndCheckIntervalRef.current = null;
+      }
+      lastTrackEndCheckRef.current = 0;
+
       if (externalIsPlaying === undefined) {
         setInternalIsPlaying(false);
       }
@@ -138,6 +241,16 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       setDuration(0);
       setIsLoading(true);
     }, [src]);
+
+    // Set initial position for playlist mode
+    useEffect(() => {
+      if (playlistMode && trackStartTime > 0) {
+        const audio = audioRef.current;
+        if (audio) {
+          audio.currentTime = trackStartTime;
+        }
+      }
+    }, [playlistMode, trackStartTime]);
 
     // Sync external play state with audio element
     useEffect(() => {
@@ -182,23 +295,30 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
     };
 
     const progressPercentage =
-      duration > 0 ? (currentTime / duration) * 100 : 0;
+      effectiveDuration > 0 ? (currentTime / effectiveDuration) * 100 : 0;
 
     const handleProgressBarClick = (
       event: React.MouseEvent<HTMLDivElement>
     ) => {
       const audio = audioRef.current;
-      if (!audio || !duration) return;
+      if (!audio || !effectiveDuration) return;
 
       const progressBar = event.currentTarget;
       const rect = progressBar.getBoundingClientRect();
       const clickX = event.clientX - rect.left;
       const percentage = clickX / rect.width;
-      const newTime = percentage * duration;
+      const newRelativeTime = percentage * effectiveDuration;
 
-      // Update the audio time
-      audio.currentTime = newTime;
-      setCurrentTime(newTime);
+      if (playlistMode) {
+        // In playlist mode, convert relative time to absolute time
+        const newAbsoluteTime = trackStartTime + newRelativeTime;
+        audio.currentTime = newAbsoluteTime;
+        setCurrentTime(newRelativeTime);
+      } else {
+        // Normal mode
+        audio.currentTime = newRelativeTime;
+        setCurrentTime(newRelativeTime);
+      }
     };
 
     return (
@@ -208,7 +328,17 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
           className
         )}
       >
-        <audio ref={audioRef} src={src} preload="metadata" />
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+          playsInline
+          webkit-playsinline="true"
+          crossOrigin="anonymous"
+          controls={false}
+          loop={false}
+          muted={false}
+        />
 
         {cover && (
           <div className="flex justify-center">
@@ -281,7 +411,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
             </div>
             <div className="flex justify-between text-sm font-medium opacity-90">
               <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
+              <span>{formatTime(effectiveDuration)}</span>
             </div>
           </div>
         </div>

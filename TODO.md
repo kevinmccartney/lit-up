@@ -9,7 +9,7 @@
 - [x] Dynamic title
 - [x] Finalize layout
 - [x] Favicon
-- [ ] Create themes
+- [x] Create themes
   - [x] Fix easter egg hover (add more color weights)
-- [ ] Bug: why are the tracks not auto-advancing when my phone is locked?
-- [ ] Bug: Make prev button go back to beginning of track when the track is in flight
+- [x] Bug: Make prev button go back to beginning of track when the track is in flight
+- [x] Bug: why are the tracks not auto-advancing when my phone is locked?

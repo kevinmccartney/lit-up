@@ -2,7 +2,7 @@
 resource "aws_route53_record" "lit_up_domain" {
   zone_id = data.aws_route53_zone.kevinmccartney_is.zone_id
   name    = "lit-up.kevinmccartney.is"
-  type    = "CNAMEnop"
+  type    = "CNAME"
   records = [aws_cloudfront_distribution.static_site.domain_name]
   ttl     = 300
 
