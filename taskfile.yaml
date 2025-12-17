@@ -114,6 +114,19 @@ tasks:
     desc: "Apply the Terraform infrastructure"
     dir: projects/infra
     cmd: terraform apply
+  infra:fmt:
+    desc: "Check Terraform formatting (terraform fmt -check)"
+    dir: projects/infra
+    cmd: terraform fmt -check -diff -recursive
+  infra:tflint:
+    desc: "Run tflint on Terraform files"
+    dir: projects/infra
+    cmd: tflint --recursive
+  infra:lint:
+    desc: "Run Terraform formatting + lint checks"
+    cmds:
+      - task: infra:fmt
+      - task: infra:tflint
   infra:destroy:
     desc: "Destroy the Terraform infrastructure"
     dir: projects/infra

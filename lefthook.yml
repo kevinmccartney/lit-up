@@ -1,0 +1,19 @@
+# Lefthook git hooks configuration
+# See https://github.com/evilmartians/lefthook for documentation
+
+pre-commit:
+  commands:
+    infra_terraform:
+      glob: "projects/infra/**/*.tf"
+      run: scripts/git-hooks/infra_terraform_checks.sh
+
+prepare-commit-msg:
+  commands:
+    conventional_wizard:
+      interactive: true
+      run: scripts/git-hooks/conventional_wizard.sh "{1}" "{2}" "{3}"
+
+commit-msg:
+  commands:
+    conventional_validate:
+      run: scripts/git-hooks/conventional_validate.sh "{1}"

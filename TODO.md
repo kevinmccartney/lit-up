@@ -23,13 +23,13 @@
 ## v3
 
 - [x] refactor: monorepo restructure
-- [ ] chore: git hooks
+- [x] chore: git hooks
 - [ ] chore: linting/static analysis quality tools
   - [ ] pylint/flake8
   - [ ] black
   - [ ] eslint
-  - [ ] tflint
-  - [ ] tf format
+  - [x] tflint
+  - [x] tf format
 - [ ] refactor: clean up repo in general (with the help of cursor 🤖)
 - [ ] chore: add instructions file
 - [ ] feat: build playlist and songs REST resources

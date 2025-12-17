@@ -113,6 +113,57 @@ The project uses [Task](https://taskfile.dev) for task automation. Common tasks 
 
 See `taskfile.yaml` for the complete list of available tasks.
 
+## Git Hooks
+
+This project uses [Lefthook](https://github.com/evilmartians/lefthook) for managing git hooks. Lefthook provides a simple, cross-platform way to manage git hooks with a YAML configuration file.
+
+### Setup
+
+1. **Install Lefthook** (if not already installed):
+
+   ```bash
+   # macOS
+   brew install lefthook
+
+   # Or see https://github.com/evilmartians/lefthook#installation for other platforms
+   ```
+
+2. **Install hooks** (first time setup):
+
+   ```bash
+   lefthook install
+   ```
+
+   This will install the hooks defined in `lefthook.yml` into your `.git/hooks/` directory.
+
+### Conventional Commits
+
+We enforce [Conventional Commits](https://www.conventionalcommits.org/) to keep history readable and to enable future automation (changelogs, releases, etc.).
+
+- **Wizard (`prepare-commit-msg`)**: If you run `git commit` _without_ `-m`, you’ll get an interactive prompt to build a Conventional Commit message.
+- **Validator (`commit-msg`)**: Every commit message is validated before the commit is created.
+
+### Configuration
+
+Git hooks are configured in `lefthook.yml` at the root of the repository. The configuration supports:
+
+- Pre-commit hooks (run before commits)
+- Pre-push hooks (run before pushes)
+- Commit-msg hooks (validate commit messages)
+- Post-commit hooks (run after commits)
+
+See the [Lefthook documentation](https://github.com/evilmartians/lefthook) for detailed configuration options.
+
+### Current Hooks
+
+- **pre-commit**: Runs checks before allowing a commit
+
+To skip hooks for a specific commit:
+
+```bash
+git commit --no-verify
+```
+
 ## Roadmap
 
 For detailed roadmap and planned features, see [TODO.md](./TODO.md).
