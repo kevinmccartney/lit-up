@@ -6,3 +6,5 @@ provider "aws" {
   # - AWS_SESSION_TOKEN (optional, for temporary creds)
   # - AWS_REGION or AWS_DEFAULT_REGION
 }
+
+provider "archive" {}

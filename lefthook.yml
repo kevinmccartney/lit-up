@@ -6,7 +6,12 @@ pre-commit:
     infra_terraform:
       glob: "projects/infra/**/*.tf"
       run: scripts/git-hooks/infra_terraform_checks.sh
-
+    lint_web:
+      glob: "projects/ui/**/*.{js,jsx,ts,tsx}"
+      run: cd projects/ui && npm run lint
+    lint_api:
+      glob: "projects/api/**/*.{py}"
+      run: cd projects/api && ruff check .
 prepare-commit-msg:
   commands:
     conventional_wizard:
