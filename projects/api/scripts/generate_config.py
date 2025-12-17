@@ -5,6 +5,7 @@ This script transforms the YAML configuration into the JSON format expected by
 the app.
 """
 
+import argparse
 import datetime
 import importlib
 import json
@@ -13,27 +14,21 @@ from pathlib import Path
 import secrets
 
 
-def generate_app_config():
+def generate_app_config(config_path: Path, out_dir: Path):
     """Generate appConfig.json from lit_up_config.yaml."""
-    # Get the script directory and workspace root
-    script_dir = Path(__file__).parent
-    workspace_dir = script_dir.parent
-    yaml_path = workspace_dir / "lit_up_config.yaml"
-
     # Check if YAML file exists
-    if not yaml_path.exists():
-        print(f"❌ Error: {yaml_path} not found")
-        print("Please ensure lit_up_config.yaml exists in the workspace root")
+    if not config_path.exists():
+        print(f"❌ Error: {config_path} not found")
         return False
 
     # Load YAML file
-    print(f"📖 Loading configuration from {yaml_path}")
+    print(f"📖 Loading configuration from {config_path}")
     try:
         yaml = importlib.import_module("yaml")
     except ModuleNotFoundError:
         print("❌ Error: PyYAML is not installed. Please install 'pyyaml'.")
         return False
-    with open(yaml_path, "r", encoding="utf-8") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         yaml_error = getattr(yaml, "YAMLError", Exception)
         try:
             data = yaml.safe_load(f)
@@ -85,9 +80,8 @@ def generate_app_config():
         "buildHash": build_hash,
     }
 
-    # Save to .out directory
-    out_dir = workspace_dir / ".out"
-    out_dir.mkdir(exist_ok=True)
+    # Save to output directory
+    out_dir.mkdir(parents=True, exist_ok=True)
     output_path = out_dir / "appConfig.json"
 
     print(f"💾 Saving configuration to {output_path}")
@@ -100,8 +94,26 @@ def generate_app_config():
 
 def main():
     """Main function."""
+    parser = argparse.ArgumentParser(
+        description="Convert lit_up_config.yaml to appConfig.json for the React app"
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="Path to lit_up_config.yaml",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("."),
+        help="Output directory (default: current directory)",
+    )
+
+    args = parser.parse_args()
+
     print("🔄 Converting YAML to JSON...")
-    success = generate_app_config()
+    success = generate_app_config(args.config.resolve(), args.out_dir.resolve())
 
     if not success:
         sys.exit(1)

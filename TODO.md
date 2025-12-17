@@ -22,6 +22,29 @@
 
 ## v3
 
-- [ ] feat: api endpoint to get available versions
-- [ ] feat: default color bty
-- [ ] feat: create
+- [x] refactor: monorepo restructure
+- [ ] chore: git hooks
+- [ ] chore: linting/static analysis quality tools
+  - [ ] pylint/flake8
+  - [ ] black
+  - [ ] eslint
+  - [ ] tflint
+  - [ ] tf format
+- [ ] refactor: clean up repo in general (with the help of cursor 🤖)
+- [ ] chore: add instructions file
+- [ ] feat: build playlist and songs REST resources
+- [ ] chore: host OpenAPI spec
+- [ ] infra: build file storage for converted songs
+- [ ] build: create CI
+- [ ] feat: default color for version
+- [ ] feat: create admin interface
+
+## v4
+
+- [ ] feat: host media (image/song) processing services
+- [ ] feat: media processing conversion tracking (would I need websocket for this?)
+
+## v5
+
+- [ ] feat: create user REST resources
+- [ ] feat: implement idp for admin

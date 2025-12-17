@@ -3,3 +3,4 @@ dist
 .env
 .DS_Store
 lit_up_config.yaml
+node_modules/

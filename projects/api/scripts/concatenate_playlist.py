@@ -5,11 +5,11 @@ This creates a continuous audio stream that can be used with timestamp-based see
 to solve iOS lock screen auto-advance issues.
 """
 
+import argparse
 import json
 import logging
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
 import importlib
 
 # Configure logging
@@ -402,14 +402,23 @@ def create_concatenated_playlist(
 
 def main():
     """Main function to create concatenated playlist."""
+    parser = argparse.ArgumentParser(
+        description="Create concatenated audio playlist for iOS lock screen compatibility"
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("."),
+        help="Output directory (default: current directory)",
+    )
+
+    args = parser.parse_args()
+
     try:
         # Get workspace directories
-        script_dir = Path(__file__).parent
-        workspace_dir = script_dir.parent
-
-        songs_dir = workspace_dir / ".out" / "songs"
-        output_dir = workspace_dir / ".out"
-        app_config_path = workspace_dir / ".out" / "appConfig.json"
+        output_dir = args.out_dir.resolve()
+        songs_dir = output_dir / "songs"
+        app_config_path = output_dir / "appConfig.json"
 
         # Check if required files exist
         if not songs_dir.exists():

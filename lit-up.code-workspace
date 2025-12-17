@@ -1,0 +1,20 @@
+{
+  "folders": [
+	{
+		"path": "."
+	},
+	{
+		"path": "projects/api"
+	},
+	{
+		"path": "projects/admin"
+	},
+	{
+		"path": "projects/ui"
+	},
+	{
+		"path": "projects/infra"
+	}
+],
+  "settings": {}
+}

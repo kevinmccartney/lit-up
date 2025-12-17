@@ -4,6 +4,7 @@ Script to process songs using Y2Mate website automation.
 This script loads the Y2Mate website and processes multiple song URLs for MP3 conversion.
 """
 
+import argparse
 import os
 import time
 import logging
@@ -523,18 +524,31 @@ def process_songs_on_y2mate(
 
 def main():
     """Main function to run the song processing automation."""
+    parser = argparse.ArgumentParser(
+        description="Process songs using Y2Mate website automation"
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="Path to lit_up_config.yaml",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("."),
+        help="Output directory (default: current directory)",
+    )
+
+    args = parser.parse_args()
+
     driver = None
 
     try:
         logger.info("Starting Y2Mate song processing automation...")
 
         # Set up directories
-        workspace_dir = Path(
-            __file__
-        ).parent.parent  # Go up from scripts/ to workspace root
-
-        # Create .out directory structure
-        out_dir = workspace_dir / ".out"
+        out_dir = args.out_dir.resolve()
         songs_dir = out_dir / "songs"
         album_art_dir = out_dir / "album_art"
 
@@ -545,7 +559,7 @@ def main():
         logger.info(f"Album art directory: {album_art_dir}")
 
         # Load songs from YAML file
-        yaml_file_path = workspace_dir / "lit_up_config.yaml"
+        yaml_file_path = args.config.resolve()
         songs = load_songs_from_yaml(yaml_file_path)
         if not songs:
             logger.error("No songs found in lit_up_config.yaml file")

@@ -5,6 +5,7 @@ This script reads the lit_up_config.yaml file, checks for corresponding MP3 file
 and updates the duration field with the actual duration from the MP3 files.
 """
 
+import argparse
 import yaml
 import logging
 from pathlib import Path
@@ -164,14 +165,30 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
 
 def main():
     """Main function to analyze MP3 durations and update YAML."""
+    parser = argparse.ArgumentParser(
+        description="Analyze MP3 files and update lit_up_config.yaml with actual durations"
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="Path to lit_up_config.yaml",
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("."),
+        help="Output directory containing songs (default: current directory)",
+    )
+
+    args = parser.parse_args()
+
     try:
         logger.info("Starting MP3 duration analysis...")
 
         # Set up paths
-        script_dir = Path(__file__).parent
-        workspace_dir = script_dir.parent
-        yaml_file_path = workspace_dir / "lit_up_config.yaml"
-        songs_dir = workspace_dir / ".out" / "songs"
+        yaml_file_path = args.config.resolve()
+        songs_dir = args.out_dir.resolve() / "songs"
 
         logger.info(f"YAML file: {yaml_file_path}")
         logger.info(f"Songs directory: {songs_dir}")

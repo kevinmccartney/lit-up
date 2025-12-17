@@ -1,82 +1,129 @@
-# ✨ Lit Up - React Starter App
+# Lit Up
 
-A modern, beautiful React starter application with Webpack, Babel, and hot reloading.
+A platform for creating and hosting custom music playlists with a beautiful, modern web interface.
 
-## 🚀 Features
+## Overview
 
-- ⚡ **Hot Reloading** - Instant updates during development
-- 🎨 **Modern UI** - Beautiful gradient design with glassmorphism effects
-- 📱 **Responsive** - Works perfectly on all device sizes
-- ♿ **Accessible** - Built with accessibility in mind
-- 🔧 **Modern Tooling** - Webpack 5, Babel, and latest React 18
-- 🎯 **Interactive Demo** - Counter component to test React state
+Lit Up enables you to create personalized music playlists that can be shared and played through a web-based music player. The platform handles song processing, playlist generation, and provides a responsive UI optimized for both desktop and mobile devices.
 
-## 🛠️ Tech Stack
+## Architecture
 
-- **React 18** - Latest React with automatic JSX runtime
-- **Webpack 5** - Module bundler with dev server
-- **Babel** - JavaScript transpiler for JSX support
-- **CSS3** - Modern styling with gradients and animations
+This is a monorepo containing multiple projects that work together to deliver the Lit Up platform:
 
-## 📦 Installation
+### Projects
 
-1. **Install dependencies:**
+#### 🎨 [`projects/ui`](./projects/ui)
+
+The frontend React application built with Vite, TypeScript, and Tailwind CSS. This is the user-facing music player interface that provides:
+
+- Music playback with auto-advance
+- Responsive design for mobile and desktop
+- Theme customization
+- Progressive Web App (PWA) support
+- Versioned deployments
+
+#### 🔧 [`projects/api`](./projects/api)
+
+Python-based scripts for processing and managing playlists. Currently implemented as standalone scripts, these will be refactored into a proper REST API in future versions. Current capabilities include:
+
+- Song processing and conversion
+- Playlist concatenation for iOS compatibility
+- Configuration generation
+- Duration analysis
+- Favicon generation
+
+#### 👤 [`projects/admin`](./projects/admin)
+
+Admin interface for managing playlists and songs (coming soon). This will be a React web application that allows administrators to:
+
+- Process songs
+- Build playlists
+- Manage content
+
+#### ☁️ [`projects/infra`](./projects/infra)
+
+Terraform infrastructure as code for AWS deployment. Manages:
+
+- S3 bucket for static site hosting
+- CloudFront distribution for CDN
+- Route53 DNS configuration
+- SSL certificate management
+- Versioned deployments
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js and npm
+- Python 3.x
+- Terraform (for infrastructure)
+- AWS credentials configured
+- Task (task runner) - install from [taskfile.dev](https://taskfile.dev)
+
+### Quick Start
+
+1. **Set up environment variables**
 
    ```bash
-   npm install
+   cp .env.sample .env
+   # Edit .env with your AWS credentials
    ```
 
-2. **Start development server:**
+2. **Initialize infrastructure** (first time only)
 
    ```bash
-   npm start
+   task infra:init
+   task infra:apply
    ```
 
-   The app will open automatically at `http://localhost:3000`
+3. **Run the development server**
 
-## 🎮 Available Scripts
+   ```bash
+   task ui:dev
+   ```
 
-- `npm start` - Start development server with hot reloading
-- `npm run dev` - Alternative command for development server
-- `npm run build` - Build production bundle
+4. **Deploy to production**
+   ```bash
+   task ui:deploy
+   ```
 
-## 📁 Project Structure
+## Configuration
 
-```
-lit-up/
-├── public/
-│   └── index.html          # HTML template
-├── src/
-│   ├── App.jsx             # Main React component
-│   ├── App.css             # Styling
-│   └── index.js            # Entry point
-├── webpack.config.js       # Webpack configuration
-├── .babelrc               # Babel configuration
-├── package.json           # Dependencies and scripts
-└── README.md              # This file
-```
+Playlists are configured via `lit_up_config.yaml` at the root of the repository. This file defines:
 
-## 🎨 Customization
+- Header message
+- Favicon emoji
+- Song list with metadata (title, artist, duration, album art, etc.)
+- Secret tracks (easter eggs)
 
-The app includes:
+See `lit_up_config.yaml.sample` for an example configuration.
 
-- A beautiful gradient background
-- Glassmorphism card design
-- Interactive counter component
-- Feature showcase section
-- Responsive layout
+## Development
 
-You can customize the styling in `src/App.css` and add new components in the `src/` directory.
+The project uses [Task](https://taskfile.dev) for task automation. Common tasks include:
 
-## 🚀 Getting Started
+- `task ui:dev` - Start development server
+- `task ui:build` - Build for production
+- `task ui:preview` - Preview production build
+- `task ui:deploy` - Deploy to S3/CloudFront
+- `task api:process_songs` - Process songs from config
+- `task api:generate_config` - Generate app config JSON
+- `task infra:plan` - Preview infrastructure changes
+- `task infra:apply` - Apply infrastructure changes
 
-1. Run `npm install` to install all dependencies
-2. Run `npm start` to start the development server
-3. Open your browser to `http://localhost:3000`
-4. Start building your React app!
+See `taskfile.yaml` for the complete list of available tasks.
 
-The app will automatically reload when you make changes to the source code.
+## Roadmap
 
-## 📝 License
+For detailed roadmap and planned features, see [TODO.md](./TODO.md).
 
-MIT License - feel free to use this starter for your projects!
+High-level roadmap:
+
+- **v1/v2**: Core functionality, themes, versioning ✅
+- **v3**: Monorepo restructure, REST API, admin interface
+- **v4**: Media processing services, conversion tracking
+- **v5**: User management, authentication
+
+## License
+
+MIT

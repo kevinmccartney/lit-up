@@ -1,19 +1,31 @@
 version: 3
 
+silent: true
+
 tasks:
-  app:dev:
+  ui:dev:
+    desc: "Run the UI development stack"
+    summary: "Runs the react dev server. Also processes songs (will not re-process any songs that have already been processed), generates the config, and concatenates the audio playlist."
+    dir: projects/ui
     cmds:
-      - task: songs:process
+      - task: api:process_songs
       - task: config:generate
-      - task: playlist:concatenate
+      - task: api:concatenate_playlist
       - npm run dev
-  app:build:
-    cmd: |
-      npm run build
-  app:preview:
-    cmd: |
-      npm run preview
-  app:deploy:
+  ui:build:
+    desc: "Build the UI for production"
+    summary: "Builds the UI (& only the UI) for production using Vite."
+    dir: projects/ui
+    cmd: npm run build
+  ui:preview:
+    desc: "Preview the UI for production"
+    summary: "Previews a production build of the UI (IE no source maps, no dev server - just the built files)."
+    dir: projects/ui
+    cmd: npm run preview
+  ui:deploy:
+    desc: "Deploy the UI to S3"
+    summary: "Deploys the UI to S3. Also processes songs (will not re-process any songs that have already been processed), generates the config, concatenates the audio playlist, and generates the favicon."
+    dir: projects/ui
     cmds:
       - |
         # Use VERSION env var or default to v1 (set early so build process can use it)
@@ -22,14 +34,14 @@ tasks:
       - |
         echo "Cleaning dist directory..."
         rm -rf dist/*
-        # echo "Cleaning .out directory..."
-        # rm -rf .out/*
-      - task: songs:process
-      - task: config:generate
-      - task: playlist:concatenate
-      - task: favicon:generate
-      - task: app:build
+      - task: api:process_songs
+      - task: api:generate_config
+      - task: api:concatenate_playlist
+      - task: api:generate_favicon
+      - task: ui:build
       - |
+        # this is a hack to get the converted songs into the dist directory
+        # once we have a proper API, we can remove this
         echo "Copying .out to dist..."
         cp -r .out/* dist/
         if [ $? -eq 0 ]; then
@@ -41,7 +53,7 @@ tasks:
       - |
         echo "🚀 Deploying React app to S3..."
         # Get the S3 bucket name from Terraform outputs
-        BUCKET_NAME=$(cd infra && terraform output -raw s3_bucket_name)
+        BUCKET_NAME=$(cd ../infra && terraform output -raw s3_bucket_name)
         if [ -z "$BUCKET_NAME" ]; then
           echo "❌ Error: Could not get S3 bucket name from Terraform outputs"
           echo "Make sure you've run 'task infra:apply' first"
@@ -56,7 +68,7 @@ tasks:
           echo "✅ S3 sync successful!"
           
           # Get CloudFront distribution ID and invalidate cache
-          DISTRIBUTION_ID=$(cd infra && terraform output -raw cloudfront_distribution_id)
+          DISTRIBUTION_ID=$(cd ../infra && terraform output -raw cloudfront_distribution_id)
           if [ -n "$DISTRIBUTION_ID" ]; then
             echo "🔄 Invalidating CloudFront cache..."
             aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
@@ -70,15 +82,21 @@ tasks:
           fi
           
           echo "✅ Deployment successful!"
-          echo "🌐 Your app is available at: $(cd infra && terraform output -raw website_url)"
+          echo "🌐 Your app is available at: $(cd ../infra && terraform output -raw website_url)"
         else
           echo "❌ Deployment failed"
           exit 1
         fi
   env:init:
+    desc: "Initialize the environment variables"
+    summary: "Initializes the environment variables from the .env file."
+    dir: .
     cmd: |
       set -a; source .env; set +a
   infra:init:
+    desc: "Initialize the Terraform infrastructure"
+    summary: "Initializes the Terraform infrastructure. Also initializes the environment variables."
+    dir: projects/infra
     cmds:
       - task: env:init
       - |
@@ -89,96 +107,97 @@ tasks:
           -backend-config="dynamodb_table=$TF_STATE_DYNAMODB_TABLE" \
           -backend-config="encrypt=true"
   infra:plan:
-    cmd: |
-      cd infra && terraform plan
+    desc: "Plan the Terraform infrastructure"
+    dir: projects/infra
+    cmd: terraform plan
   infra:apply:
-    cmd: |
-      cd infra && terraform apply
+    desc: "Apply the Terraform infrastructure"
+    dir: projects/infra
+    cmd: terraform apply
   infra:destroy:
-    cmd: |
-      cd infra && terraform destroy
-  ssl:status:
+    desc: "Destroy the Terraform infrastructure"
+    dir: projects/infra
+    cmd: terraform destroy
+  infra:ssl_status:
     desc: "Check SSL certificate validation status"
-    cmd: |
-      cd infra && terraform output certificate_validation_status
-  ssl:info:
+    dir: projects/infra
+    cmd: terraform output certificate_validation_status
+  infra:ssl_info:
     desc: "Display SSL certificate information"
+    dir: projects/infra
     cmd: |
       echo "SSL Certificate Information:"
-      echo "Domain: $(cd infra && terraform output -raw certificate_domain_name)"
-      echo "ARN: $(cd infra && terraform output -raw certificate_arn)"
-      echo "Status: $(cd infra && terraform output -raw certificate_validation_status)"
+      echo "Domain: $(terraform output -raw certificate_domain_name)"
+      echo "ARN: $(terraform output -raw certificate_arn)"
+      echo "Status: $(terraform output -raw certificate_validation_status)"
       echo ""
       echo "Website URLs:"
-      echo "Custom Domain: $(cd infra && terraform output -raw website_url)"
-      echo "CloudFront URL: $(cd infra && terraform output -raw cloudfront_url)"
-  songs:process:
-    desc: "Run the process_songs.py script with virtual environment setup"
+      echo "Custom Domain: $(terraform output -raw website_url)"
+      echo "CloudFront URL: $(terraform output -raw cloudfront_url)"
+  api:ensure_venv:
+    desc: "Ensure the Python virtual environment is setup"
+    dir: projects/api/scripts
     cmds:
       - |
         echo "🐍 Setting up Python virtual environment..."
-        cd scripts
         if [ ! -d "venv" ]; then
           python -m venv venv
           echo "✅ Virtual environment created"
-        else
-          echo "✅ Virtual environment already exists"
         fi
+  api:process_songs:
+    desc: "Process the songs"
+    summary: "Processes the songs using the process_songs.py script. Also analyzes the songs and updates the lit_up_config.yaml with the actual durations."
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
         source venv/bin/activate
         echo "📦 Installing requirements..."
         pip install -r requirements.txt
         echo "🚀 Running process_songs.py..."
-        python process_songs.py
-      - task: songs:analyze
-  config:generate:
+        python process_songs.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
+      - task: api:analyze_song_durations
+  api:analyze_song_durations:
+    desc: "Analyze song durations"
+    summary: "Analyzes the songs and updates the lit_up_config.yaml with the actual durations."
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
+        echo "🔍 Analyzing MP3 durations..."
+        source venv/bin/activate
+        pip install -r requirements.txt -q
+        python analyze_song_durations.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
+  api:generate_config:
     desc: "Convert lit_up_config.yaml to appConfig.json for the app"
+    dir: projects/api/scripts
     cmds:
       - |
         echo "🔄 Converting YAML to JSON..."
-        cd scripts
-        if [ ! -d "venv" ]; then
-          python -m venv venv
-        fi
         source venv/bin/activate
         pip install -r requirements.txt -q
-        python generate_config.py
-  playlist:concatenate:
+        python generate_config.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
+  api:concatenate_playlist:
     desc: "Create concatenated audio playlist for iOS lock screen compatibility"
+    dir: projects/api/scripts
     cmds:
+      - task: api:ensure_venv
       - |
         echo "🎵 Creating concatenated audio playlist..."
-        cd scripts
-        if [ ! -d "venv" ]; then
-          python -m venv venv
-        fi
         source venv/bin/activate
         pip install -r requirements.txt -q
-        python concatenate_audio.py
-  songs:analyze:
-    desc: "Analyze existing MP3 files and update lit_up_config.yaml with actual durations"
-    cmds:
-      - |
-        echo "🔍 Analyzing MP3 durations..."
-        cd scripts
-        if [ ! -d "venv" ]; then
-          python -m venv venv
-        fi
-        source venv/bin/activate
-        pip install -r requirements.txt -q
-        python analyze_mp3_durations.py
-  favicon:generate:
+        python concatenate_playlist.py --out-dir ../../ui/.out
+  api:generate_favicon:
     desc: "Generate favicon SVG and PNG from emoji in lit_up_config.yaml"
+    dir: projects/api/scripts
     cmds:
+      - task: api:ensure_venv
       - |
         echo "🎨 Generating favicon..."
-        cd scripts
-        if [ ! -d "venv" ]; then
-          python -m venv venv
-        fi
         source venv/bin/activate
         pip install -r requirements.txt -q
-        # Generate SVG favicon
-        python emoji_to_favicon.py --config ../lit_up_config.yaml -f svg -o ../.out/favicon.svg
-        # Generate PNG favicon (requires cairosvg)
-        python emoji_to_favicon.py --config ../lit_up_config.yaml -f png -o ../.out/favicon-32x32.png -s 32
+        # this is a hack to get the favicon into the ui directory
+        # once we have a proper API, we can remove this
+        python emoji_to_favicon.py --config ../../../lit_up_config.yaml -f svg -o ../../ui/.out/favicon.svg
+        python emoji_to_favicon.py --config ../../../lit_up_config.yaml -f png -o ../../ui/.out/favicon-32x32.png -s 32
         echo "✅ Favicon generated!"
