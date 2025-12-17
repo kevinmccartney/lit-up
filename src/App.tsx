@@ -1,12 +1,20 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
 import MediaLibrary, { Track } from "./components/MediaLibrary";
-import { AppConfig, ConcatenatedPlaylist, useTracks } from "./hooks/useTracks";
+import {
+  AppConfig,
+  ConcatenatedPlaylist,
+  getAppConfigUrl,
+  useTracks,
+  withAppBase,
+} from "./hooks/useTracks";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
-import { Heart } from "lucide-react";
+import { Heart, Settings } from "lucide-react";
 import ThemePicker from "./components/ThemePicker";
 import DevBuildInfo from "./components/DevBuildInfo";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import VersionPicker from "./components/VersionPicker";
 
 function AppContent(): JSX.Element {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -14,6 +22,7 @@ function AppContent(): JSX.Element {
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [headerMessage, setHeaderMessage] = useState<string>("");
   const [showMeadow, setShowMeadow] = useState<boolean>(false);
   const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
@@ -26,6 +35,7 @@ function AppContent(): JSX.Element {
     buildDatetime?: string;
     buildHash?: string;
   }>({});
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const mainPlayerRef = useRef<MediaPlayerRef>(null);
   const { theme, primaryColor, secondaryColor, tertiaryColor } = useTheme();
   const secretTrack = useMemo(
@@ -36,6 +46,31 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     console.log(theme);
   }, [theme]);
+
+  // Close dropdown when screen goes below md breakpoint (768px)
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+
+    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      // If screen goes below md, close the dropdown
+      if (!e.matches && isDropdownOpen) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    // Check initial state
+    handleMediaChange(mediaQuery);
+
+    // Listen for changes
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleMediaChange);
+      return () => mediaQuery.removeEventListener("change", handleMediaChange);
+    } else {
+      // Fallback for older browsers
+      mediaQuery.addListener(handleMediaChange);
+      return () => mediaQuery.removeListener(handleMediaChange);
+    }
+  }, [isDropdownOpen]);
 
   // Create dynamic CSS custom properties for theme colors
   const themeStyles = useMemo(() => {
@@ -54,16 +89,25 @@ function AppContent(): JSX.Element {
         const loadedTracks = await useTracks();
         // Also fetch build info and concatenated playlist data
         try {
-          const res = await fetch("/appConfig.json");
+          const res = await fetch(getAppConfigUrl());
           if (res.ok) {
             const cfg: AppConfig = await res.json();
+            if (
+              typeof cfg.headerMessage === "string" &&
+              cfg.headerMessage.trim()
+            ) {
+              setHeaderMessage(cfg.headerMessage.trim());
+            }
             setBuildInfo({
               buildDatetime: cfg.buildDatetime,
               buildHash: cfg.buildHash,
             });
             // Check for concatenated playlist
             if (cfg.concatenatedPlaylist && cfg.concatenatedPlaylist.enabled) {
-              setConcatenatedPlaylist(cfg.concatenatedPlaylist);
+              setConcatenatedPlaylist({
+                ...cfg.concatenatedPlaylist,
+                file: withAppBase(cfg.concatenatedPlaylist.file),
+              });
             }
           }
         } catch (e) {
@@ -91,9 +135,22 @@ function AppContent(): JSX.Element {
     return flag === "true" || flag === "1";
   }, []);
 
+  // Get current version from Vite's BASE_URL
+  const getCurrentVersion = useCallback((): string => {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    // BASE_URL will be like /v1/ or /v2/, extract the version
+    const match = baseUrl.match(/\/(v\d+)\//);
+    if (match && match[1]) {
+      return match[1];
+    }
+    // Default fallback
+    return "v1";
+  }, []);
+
   // Update the browser tab title to reflect the currently playing song
   useEffect(() => {
-    const baseTitle = "Lit Up";
+    const version = getCurrentVersion();
+    const baseTitle = `Lit Up ${version}`;
 
     // Determine which track is effectively playing (secret track takes precedence when meadow is shown)
     const activeSecret = showMeadow && secretTrackPlaying && secretTrack;
@@ -107,7 +164,14 @@ function AppContent(): JSX.Element {
     } else {
       document.title = baseTitle;
     }
-  }, [selectedTrack, isPlaying, showMeadow, secretTrackPlaying, secretTrack]);
+  }, [
+    selectedTrack,
+    isPlaying,
+    showMeadow,
+    secretTrackPlaying,
+    secretTrack,
+    getCurrentVersion,
+  ]);
 
   const handleTrackSelect = useCallback((track: Track) => {
     setSelectedTrack(track);
@@ -416,26 +480,58 @@ function AppContent(): JSX.Element {
     );
   }
 
+  const settingsMenu = (
+    <div className="flex flex-row md:flex-col gap-4 md:gap-2">
+      <ThemePicker className="w-full" />
+      <VersionPicker className="w-full" />
+    </div>
+  );
+
   return (
     <div
       className="flex flex-col bg-[var(--theme-primary)] h-screen-mobile-portrait"
       style={themeStyles}
     >
       <header
-        className={`flex-shrink-0 flex flex-col md:flex-row justify-between gap-2 md:gap-0 md:mb-4`}
+        className={`flex-shrink-0 flex flex-col md:flex-row justify-between mb-8 md:mb-4`}
       >
         <div
-          className={`py-2 bg-[var(--theme-tertiary)] w-full border-b-2 border-[var(--theme-secondary)]`}
+          className={`py-2 bg-[var(--theme-tertiary)] w-full md:border-b-2 border-[var(--theme-secondary)]`}
         >
           <div className="flex items-center justify-between gap-4 marquee w-full md:w-11/12">
-            <h1 className="text-2xl font-bold">
-              ♍️ Happy Birthday Sarah!! 🥳
-            </h1>
+            <h1 className="text-2xl font-bold">{headerMessage}</h1>
           </div>
         </div>
-        <ThemePicker
-          className={`w-full md:w-auto justify-end p-4 md:p-2 md:bg-[var(--theme-tertiary)] md:border-b-2 md:border-[var(--theme-secondary)]`}
-        />
+        <div className="flex justify-end md:hidden bg-[var(--theme-tertiary)] border-b-2 border-[var(--theme-secondary)] pb-2 px-4">
+          {settingsMenu}
+        </div>
+        <div className="hidden md:flex">
+          <DropdownMenu.Root
+            open={isDropdownOpen}
+            onOpenChange={setIsDropdownOpen}
+          >
+            <DropdownMenu.Trigger asChild>
+              <button
+                className={`w-full md:w-auto p-4 md:p-2 bg-[var(--theme-tertiary)] border-b-2 border-[var(--theme-secondary)] hover:bg-[var(--theme-secondary)] transition-colors flex items-center justify-center md:justify-end`}
+                aria-label="Settings"
+              >
+                <Settings className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="min-w-[200px] bg-[var(--theme-tertiary)] border-2 border-[var(--theme-secondary)] rounded-md shadow-lg p-4 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+                style={themeStyles}
+                sideOffset={5}
+                align="end"
+                side="bottom"
+              >
+                {settingsMenu}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
       </header>
       <main className="flex-1 flex flex-col md:gap-4 px-0 md:px-4 min-h-0 sm:overflow-y-auto md:overflow-y-hidden">
         {/* Main interface - hidden when meadow is shown */}
@@ -512,7 +608,7 @@ function AppContent(): JSX.Element {
         )}
       </main>
       <footer
-        className={`p-2 flex-shrink-0 text-sm text-center bg-[var(--theme-tertiary)] border-t-2 border-[var(--theme-secondary)]`}
+        className={`p-2 flex-shrink-0 text-sm text-center bg-[var(--theme-tertiary)] border-t-2 border-[var(--theme-secondary)] mt-8 md:mt-0`}
       >
         <p className="flex items-center justify-center gap-2">
           Built with{" "}

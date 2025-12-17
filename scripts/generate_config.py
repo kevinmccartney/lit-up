@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to convert song_list.yaml to appConfig.json for the React app.
+Script to convert lit_up_config.yaml to appConfig.json for the React app.
 This script transforms the YAML configuration into the JSON format expected by
 the app.
 """
@@ -14,16 +14,16 @@ import secrets
 
 
 def generate_app_config():
-    """Generate appConfig.json from song_list.yaml."""
+    """Generate appConfig.json from lit_up_config.yaml."""
     # Get the script directory and workspace root
     script_dir = Path(__file__).parent
     workspace_dir = script_dir.parent
-    yaml_path = workspace_dir / "song_list.yaml"
+    yaml_path = workspace_dir / "lit_up_config.yaml"
 
     # Check if YAML file exists
     if not yaml_path.exists():
         print(f"❌ Error: {yaml_path} not found")
-        print("Please ensure song_list.yaml exists in the workspace root")
+        print("Please ensure lit_up_config.yaml exists in the workspace root")
         return False
 
     # Load YAML file
@@ -45,6 +45,9 @@ def generate_app_config():
         print("❌ Error: No 'songs' key found in YAML file")
         return False
 
+    # Optional site-wide header message
+    header_message = data.get("header_message")
+
     # Transform songs to app format
     tracks = []
     for song in data["songs"]:
@@ -65,7 +68,7 @@ def generate_app_config():
             "artist": song["artist"],
             "duration": song["duration"],
             "cover": f'/album_art/{song["id"]}.jpg',
-            "isSecret": song["isSecret"],
+            "isSecret": song.get("isSecret", False),
         }
         tracks.append(track)
 
@@ -77,14 +80,15 @@ def generate_app_config():
     build_hash = secrets.token_hex(16)
     app_config = {
         "tracks": tracks,
+        "headerMessage": header_message,
         "buildDatetime": datetime.datetime.now().isoformat(),
         "buildHash": build_hash,
     }
 
-    # Save to public directory
-    public_dir = workspace_dir / "public"
-    public_dir.mkdir(exist_ok=True)
-    output_path = public_dir / "appConfig.json"
+    # Save to .out directory
+    out_dir = workspace_dir / ".out"
+    out_dir.mkdir(exist_ok=True)
+    output_path = out_dir / "appConfig.json"
 
     print(f"💾 Saving configuration to {output_path}")
     with open(output_path, "w", encoding="utf-8") as f:

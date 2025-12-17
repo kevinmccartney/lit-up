@@ -59,10 +59,10 @@ def setup_driver(songs_dir):
 
 def load_songs_from_yaml(yaml_file_path):
     """
-    Load songs from the song_list.yaml file.
+    Load songs from the lit_up_config.yaml file.
 
     Args:
-        yaml_file_path: Path to the song_list.yaml file
+        yaml_file_path: Path to the lit_up_config.yaml file
 
     Returns:
         list: List of song dictionaries with 'url' and 'id' keys
@@ -456,14 +456,34 @@ def process_songs_on_y2mate(
             album_art_filename = create_filename_from_id(song["id"], "jpg")
             album_art_filepath = album_art_dir / album_art_filename
 
-            # Download album art if it doesn't exist
+            # Check if both MP3 and album art already exist
+            mp3_exists = mp3_filepath.exists()
+            album_art_exists = (
+                album_art_filepath.exists()
+                if ("albumArtUrl" in song and song["albumArtUrl"])
+                else True
+            )
+
+            # If both files exist, skip processing entirely
+            if mp3_exists and album_art_exists:
+                logger.info(
+                    f"✓ Both MP3 and album art already exist for song {song['id']} - skipping"
+                )
+                logger.info(f"  MP3: {mp3_filename}")
+                if "albumArtUrl" in song and song["albumArtUrl"]:
+                    logger.info(f"  Album Art: {album_art_filename}")
+                results[song["url"]] = True
+                continue
+
+            # Download album art if it doesn't exist (but MP3 might exist)
             if "albumArtUrl" in song and song["albumArtUrl"]:
                 if not album_art_filepath.exists():
+                    logger.info(f"Album art missing, downloading: {album_art_filename}")
                     download_album_art(song["albumArtUrl"], album_art_filepath)
                 else:
                     logger.info(f"✓ Album art already exists: {album_art_filename}")
 
-            # Check if MP3 file exists
+            # Check if MP3 file exists - if it does, skip song processing
             if mp3_filepath.exists():
                 logger.info(
                     f"✓ MP3 file already exists: {mp3_filename} - skipping download"
@@ -471,7 +491,8 @@ def process_songs_on_y2mate(
                 results[song["url"]] = True
                 continue
 
-            # File doesn't exist, process the song
+            # MP3 doesn't exist, process the song
+            logger.info(f"MP3 file not found, processing song: {mp3_filename}")
             success = process_single_song(driver, song, songs_dir)
             results[song["url"]] = success
 
@@ -512,10 +533,10 @@ def main():
             __file__
         ).parent.parent  # Go up from scripts/ to workspace root
 
-        # Create public directory structure
-        public_dir = workspace_dir / "public"
-        songs_dir = public_dir / "songs"
-        album_art_dir = public_dir / "album_art"
+        # Create .out directory structure
+        out_dir = workspace_dir / ".out"
+        songs_dir = out_dir / "songs"
+        album_art_dir = out_dir / "album_art"
 
         songs_dir.mkdir(parents=True, exist_ok=True)
         album_art_dir.mkdir(parents=True, exist_ok=True)
@@ -524,11 +545,13 @@ def main():
         logger.info(f"Album art directory: {album_art_dir}")
 
         # Load songs from YAML file
-        yaml_file_path = workspace_dir / "song_list.yaml"
+        yaml_file_path = workspace_dir / "lit_up_config.yaml"
         songs = load_songs_from_yaml(yaml_file_path)
         if not songs:
-            logger.error("No songs found in song_list.yaml file")
-            logger.info("Please ensure song_list.yaml exists with the correct format")
+            logger.error("No songs found in lit_up_config.yaml file")
+            logger.info(
+                "Please ensure lit_up_config.yaml exists with the correct format"
+            )
             logger.info("Example format:")
             logger.info("songs:")
             logger.info("  - url: 'https://youtube.com/watch?v=abc123'")

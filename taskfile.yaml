@@ -15,10 +15,29 @@ tasks:
       npm run preview
   app:deploy:
     cmds:
+      - |
+        # Use VERSION env var or default to v1 (set early so build process can use it)
+        export VERSION="${VERSION:-v1}"
+        echo "📌 Building version: $VERSION"
+      - |
+        echo "Cleaning dist directory..."
+        rm -rf dist/*
+        # echo "Cleaning .out directory..."
+        # rm -rf .out/*
       - task: songs:process
       - task: config:generate
       - task: playlist:concatenate
+      - task: favicon:generate
       - task: app:build
+      - |
+        echo "Copying .out to dist..."
+        cp -r .out/* dist/
+        if [ $? -eq 0 ]; then
+          echo "✅ .out copied to dist!"
+        else
+          echo "❌ Error: Could not copy .out to dist"
+          exit 1
+        fi
       - |
         echo "🚀 Deploying React app to S3..."
         # Get the S3 bucket name from Terraform outputs
@@ -28,9 +47,11 @@ tasks:
           echo "Make sure you've run 'task infra:apply' first"
           exit 1
         fi
+        # VERSION was already set earlier, but ensure it's still available
+        VERSION="${VERSION:-v1}"
         echo "📦 Deploying to bucket: $BUCKET_NAME"
         # Sync the built React app to S3
-        aws s3 sync dist/ s3://$BUCKET_NAME --delete
+        aws s3 sync dist/ s3://$BUCKET_NAME/$VERSION --delete
         if [ $? -eq 0 ]; then
           echo "✅ S3 sync successful!"
           
@@ -110,7 +131,7 @@ tasks:
         python process_songs.py
       - task: songs:analyze
   config:generate:
-    desc: "Convert song_list.yaml to appConfig.json for the app"
+    desc: "Convert lit_up_config.yaml to appConfig.json for the app"
     cmds:
       - |
         echo "🔄 Converting YAML to JSON..."
@@ -134,7 +155,7 @@ tasks:
         pip install -r requirements.txt -q
         python concatenate_audio.py
   songs:analyze:
-    desc: "Analyze existing MP3 files and update song_list.yaml with actual durations"
+    desc: "Analyze existing MP3 files and update lit_up_config.yaml with actual durations"
     cmds:
       - |
         echo "🔍 Analyzing MP3 durations..."
@@ -145,3 +166,19 @@ tasks:
         source venv/bin/activate
         pip install -r requirements.txt -q
         python analyze_mp3_durations.py
+  favicon:generate:
+    desc: "Generate favicon SVG and PNG from emoji in lit_up_config.yaml"
+    cmds:
+      - |
+        echo "🎨 Generating favicon..."
+        cd scripts
+        if [ ! -d "venv" ]; then
+          python -m venv venv
+        fi
+        source venv/bin/activate
+        pip install -r requirements.txt -q
+        # Generate SVG favicon
+        python emoji_to_favicon.py --config ../lit_up_config.yaml -f svg -o ../.out/favicon.svg
+        # Generate PNG favicon (requires cairosvg)
+        python emoji_to_favicon.py --config ../lit_up_config.yaml -f png -o ../.out/favicon-32x32.png -s 32
+        echo "✅ Favicon generated!"

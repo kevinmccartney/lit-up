@@ -1,0 +1,193 @@
+{
+  "tracks": [
+    {
+      "id": "e5978ad6-5410-436c-8c1f-49d4ad497b83",
+      "src": "/songs/e5978ad6-5410-436c-8c1f-49d4ad497b83.mp3",
+      "title": "Touching Yourself",
+      "artist": "Japanese House",
+      "duration": "3:01",
+      "cover": "/album_art/e5978ad6-5410-436c-8c1f-49d4ad497b83.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "aa4ebced-832d-4742-b5e7-4df653e30bcf",
+      "src": "/songs/aa4ebced-832d-4742-b5e7-4df653e30bcf.mp3",
+      "title": "Wish On An Eyelash, Pt 2",
+      "artist": "Mallrat",
+      "duration": "3:09",
+      "cover": "/album_art/aa4ebced-832d-4742-b5e7-4df653e30bcf.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "2e694dfe-ea68-432a-8dba-f4f8d74f375e",
+      "src": "/songs/2e694dfe-ea68-432a-8dba-f4f8d74f375e.mp3",
+      "title": "Here (In Your Arms)",
+      "artist": "Hellogoodbye",
+      "duration": "4:00",
+      "cover": "/album_art/2e694dfe-ea68-432a-8dba-f4f8d74f375e.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "b99a58cc-77b0-4822-bc4a-9cb2e5f1b40e",
+      "src": "/songs/b99a58cc-77b0-4822-bc4a-9cb2e5f1b40e.mp3",
+      "title": "Flaming Hot Cheetos",
+      "artist": "Clairo",
+      "duration": "2:03",
+      "cover": "/album_art/b99a58cc-77b0-4822-bc4a-9cb2e5f1b40e.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "3fdcc43d-2e83-4c4e-8b36-f1141805a7de",
+      "src": "/songs/3fdcc43d-2e83-4c4e-8b36-f1141805a7de.mp3",
+      "title": "Favorite",
+      "artist": "Joyer",
+      "duration": "2:45",
+      "cover": "/album_art/3fdcc43d-2e83-4c4e-8b36-f1141805a7de.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "f62a904f-478b-4512-b08a-b7ded789fff4",
+      "src": "/songs/f62a904f-478b-4512-b08a-b7ded789fff4.mp3",
+      "title": "Cliche",
+      "artist": "2hollis",
+      "duration": "2:59",
+      "cover": "/album_art/f62a904f-478b-4512-b08a-b7ded789fff4.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "76fc5bad-1a05-420e-887f-638d2ecd820f",
+      "src": "/songs/76fc5bad-1a05-420e-887f-638d2ecd820f.mp3",
+      "title": "Green Light",
+      "artist": "Danny Brown",
+      "duration": "2:48",
+      "cover": "/album_art/76fc5bad-1a05-420e-887f-638d2ecd820f.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "44fa3c8f-aafd-43e9-a510-ff54f4dbea05",
+      "src": "/songs/44fa3c8f-aafd-43e9-a510-ff54f4dbea05.mp3",
+      "title": "You & Me Time",
+      "artist": "Between Friends",
+      "duration": "3:15",
+      "cover": "/album_art/44fa3c8f-aafd-43e9-a510-ff54f4dbea05.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "38aa1651-3f6d-499c-91e3-2b57bf1e15df",
+      "src": "/songs/38aa1651-3f6d-499c-91e3-2b57bf1e15df.mp3",
+      "title": "Steeeam",
+      "artist": "Shelly",
+      "duration": "2:50",
+      "cover": "/album_art/38aa1651-3f6d-499c-91e3-2b57bf1e15df.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "cc3c92d2-b12c-4dc5-bfad-a3c0fc2c4a33",
+      "src": "/songs/cc3c92d2-b12c-4dc5-bfad-a3c0fc2c4a33.mp3",
+      "title": "Chateau",
+      "artist": "Angus & Julia Stone",
+      "duration": "4:33",
+      "cover": "/album_art/cc3c92d2-b12c-4dc5-bfad-a3c0fc2c4a33.jpg",
+      "isSecret": false
+    },
+    {
+      "id": "6328eef9-de25-4ef8-ba41-c3c037cada3c",
+      "src": "/songs/6328eef9-de25-4ef8-ba41-c3c037cada3c.mp3",
+      "title": "So Into You",
+      "artist": "Childish Gambino",
+      "duration": "4:27",
+      "cover": "/album_art/6328eef9-de25-4ef8-ba41-c3c037cada3c.jpg",
+      "isSecret": true
+    }
+  ],
+  "headerMessage": "\ud83d\udca6 Sorry you're so dang horny Sarah \ud83d\ude29\ud83e\udd75",
+  "buildDatetime": "2025-12-16T19:43:49.243862",
+  "buildHash": "5e97d60c2d8b279fb716a163a6c98a01",
+  "concatenatedPlaylist": {
+    "enabled": true,
+    "file": "/playlist.mp3",
+    "tracks": [
+      {
+        "id": "e5978ad6-5410-436c-8c1f-49d4ad497b83",
+        "title": "Touching Yourself",
+        "artist": "Japanese House",
+        "startTime": 0.0,
+        "endTime": 181.62938775510204,
+        "duration": 181.62938775510204
+      },
+      {
+        "id": "aa4ebced-832d-4742-b5e7-4df653e30bcf",
+        "title": "Wish On An Eyelash, Pt 2",
+        "artist": "Mallrat",
+        "startTime": 181.62938775510204,
+        "endTime": 371.61795918367346,
+        "duration": 189.98857142857142
+      },
+      {
+        "id": "2e694dfe-ea68-432a-8dba-f4f8d74f375e",
+        "title": "Here (In Your Arms)",
+        "artist": "Hellogoodbye",
+        "startTime": 371.61795918367346,
+        "endTime": 612.1939591836734,
+        "duration": 240.576
+      },
+      {
+        "id": "b99a58cc-77b0-4822-bc4a-9cb2e5f1b40e",
+        "title": "Flaming Hot Cheetos",
+        "artist": "Clairo",
+        "startTime": 612.1939591836734,
+        "endTime": 735.805387755102,
+        "duration": 123.61142857142858
+      },
+      {
+        "id": "3fdcc43d-2e83-4c4e-8b36-f1141805a7de",
+        "title": "Favorite",
+        "artist": "Joyer",
+        "startTime": 735.805387755102,
+        "endTime": 901.369469387755,
+        "duration": 165.56408163265306
+      },
+      {
+        "id": "f62a904f-478b-4512-b08a-b7ded789fff4",
+        "title": "Cliche",
+        "artist": "2hollis",
+        "startTime": 901.369469387755,
+        "endTime": 1080.6478367346938,
+        "duration": 179.27836734693878
+      },
+      {
+        "id": "76fc5bad-1a05-420e-887f-638d2ecd820f",
+        "title": "Green Light",
+        "artist": "Danny Brown",
+        "startTime": 1080.6478367346938,
+        "endTime": 1249.5033469387754,
+        "duration": 168.85551020408164
+      },
+      {
+        "id": "44fa3c8f-aafd-43e9-a510-ff54f4dbea05",
+        "title": "You & Me Time",
+        "artist": "Between Friends",
+        "startTime": 1249.5033469387754,
+        "endTime": 1444.8470204081632,
+        "duration": 195.34367346938777
+      },
+      {
+        "id": "38aa1651-3f6d-499c-91e3-2b57bf1e15df",
+        "title": "Steeeam",
+        "artist": "Shelly",
+        "startTime": 1444.8470204081632,
+        "endTime": 1614.8519183673468,
+        "duration": 170.00489795918367
+      },
+      {
+        "id": "cc3c92d2-b12c-4dc5-bfad-a3c0fc2c4a33",
+        "title": "Chateau",
+        "artist": "Angus & Julia Stone",
+        "startTime": 1614.8519183673468,
+        "endTime": 1888.510693877551,
+        "duration": 273.65877551020407
+      }
+    ],
+    "totalDuration": 1888.510693877551
+  }
+}

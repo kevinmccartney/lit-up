@@ -28,3 +28,9 @@ variable "auth_password" {
   default     = "changeme123"
   sensitive   = true
 }
+
+variable "ACTIVE_VERSIONS" {
+  description = "Comma-delimited list of existing versions, e.g. 'v1,v2,v3'"
+  type        = string
+  default     = "v1,v2"
+}

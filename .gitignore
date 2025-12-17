@@ -1,6 +1,5 @@
 dist
-.output
-public/
+.out
 .env
 .DS_Store
-song_list.yaml
+lit_up_config.yaml

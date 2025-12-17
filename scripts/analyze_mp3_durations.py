@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Script to analyze existing MP3 files and update song_list.yaml with actual durations.
-This script reads the song_list.yaml file, checks for corresponding MP3 files,
+Script to analyze existing MP3 files and update lit_up_config.yaml with actual durations.
+This script reads the lit_up_config.yaml file, checks for corresponding MP3 files,
 and updates the duration field with the actual duration from the MP3 files.
 """
 
@@ -79,7 +79,7 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
     Analyze MP3 files and update the YAML file with actual durations.
 
     Args:
-        yaml_file_path: Path to the song_list.yaml file
+        yaml_file_path: Path to the lit_up_config.yaml file
         songs_dir: Directory containing the MP3 files
 
     Returns:
@@ -170,8 +170,8 @@ def main():
         # Set up paths
         script_dir = Path(__file__).parent
         workspace_dir = script_dir.parent
-        yaml_file_path = workspace_dir / "song_list.yaml"
-        songs_dir = workspace_dir / "public" / "songs"
+        yaml_file_path = workspace_dir / "lit_up_config.yaml"
+        songs_dir = workspace_dir / ".out" / "songs"
 
         logger.info(f"YAML file: {yaml_file_path}")
         logger.info(f"Songs directory: {songs_dir}")

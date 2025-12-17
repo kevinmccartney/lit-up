@@ -407,9 +407,9 @@ def main():
         script_dir = Path(__file__).parent
         workspace_dir = script_dir.parent
 
-        songs_dir = workspace_dir / "public" / "songs"
-        output_dir = workspace_dir / "public"
-        app_config_path = workspace_dir / "public" / "appConfig.json"
+        songs_dir = workspace_dir / ".out" / "songs"
+        output_dir = workspace_dir / ".out"
+        app_config_path = workspace_dir / ".out" / "appConfig.json"
 
         # Check if required files exist
         if not songs_dir.exists():
