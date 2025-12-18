@@ -4,15 +4,23 @@ Script to analyze existing MP3 files and update lit_up_config.yaml with actual d
 This script reads the lit_up_config.yaml file, checks for corresponding MP3 files,
 and updates the duration field with the actual duration from the MP3 files.
 """
-# pylint: disable=broad-exception-caught
 
 import argparse
 import logging
 import sys
 from pathlib import Path
 
-import yaml
-from mutagen import File
+from lit_up_script_utils import (
+    ConfigError,
+    create_filename_from_id,
+    format_duration,
+)
+from lit_up_script_utils import get_mp3_duration as get_mp3_duration_shared
+from lit_up_script_utils import (
+    load_yaml_dict,
+    require_list_field,
+    save_yaml_atomic,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_mp3_duration(mp3_file_path):
+def get_mp3_duration(mp3_file_path: Path) -> float | None:
     """
     Get the duration of an MP3 file in seconds.
 
@@ -31,55 +39,13 @@ def get_mp3_duration(mp3_file_path):
     Returns:
         float: Duration in seconds, or None if unable to determine
     """
-    try:
-        audio_file = File(mp3_file_path)
-        if audio_file is not None and hasattr(audio_file, "info"):
-            duration = audio_file.info.length
-            return duration
-
-        logger.warning("⚠ Could not read MP3 file: %s", mp3_file_path)
-        return None
-
-    except Exception as e:
-        logger.warning("⚠ Error getting MP3 duration: %s", e)
-        return None
+    duration = get_mp3_duration_shared(mp3_file_path)
+    if duration is None:
+        logger.warning("Could not read MP3 duration: %s", mp3_file_path)
+    return duration
 
 
-def format_duration(seconds):
-    """
-    Format duration in seconds to MM:SS format.
-
-    Args:
-        seconds: Duration in seconds
-
-    Returns:
-        str: Formatted duration string (MM:SS)
-    """
-    if seconds is None:
-        return "0:00"
-
-    minutes = int(seconds // 60)
-    seconds = int(seconds % 60)
-    return f"{minutes}:{seconds:02d}"
-
-
-def create_filename_from_id(song_id, extension="mp3"):
-    """
-    Create a filename from a song ID.
-
-    Args:
-        song_id: The song ID from the YAML file
-        extension: File extension (default: "mp3")
-
-    Returns:
-        str: Safe filename using the song ID
-    """
-    # Clean the ID to make it filesystem-safe
-    safe_id = str(song_id).replace("/", "_").replace("\\", "_").replace(":", "_")
-    return f"{safe_id}.{extension}"
-
-
-def analyze_and_update_durations(yaml_file_path, songs_dir):
+def analyze_and_update_durations(yaml_file_path: Path, songs_dir: Path) -> bool:
     """
     Analyze MP3 files and update the YAML file with actual durations.
 
@@ -92,17 +58,16 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
     """
     # pylint: disable=too-many-locals,too-many-branches
     try:
-        # Load the YAML file
-        with open(yaml_file_path, "r", encoding="utf-8") as file:
-            data = yaml.safe_load(file)
+        data = load_yaml_dict(yaml_file_path)
 
         if "songs" not in data:
             logger.error("No 'songs' key found in YAML file")
             return False
 
-        songs = data["songs"]
-        if not isinstance(songs, list):
-            logger.error("'songs' should be a list")
+        try:
+            songs = require_list_field(data, "songs", context="lit_up_config.yaml")
+        except ConfigError as e:
+            logger.error("%s", e)
             return False
 
         updated_count = 0
@@ -130,51 +95,49 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
                     song["duration"] = formatted_duration
 
                     if old_duration != formatted_duration:
-                        logger.info(
-                            "✓ Updated %s: %s → %s",
+                        logger.debug(
+                            "Updated %s: %s -> %s",
                             song.get("title", song_id),
                             old_duration,
                             formatted_duration,
                         )
                         updated_count += 1
                     else:
-                        logger.info(
-                            "✓ %s: %s (unchanged)",
+                        logger.debug(
+                            "%s: %s (unchanged)",
                             song.get("title", song_id),
                             formatted_duration,
                         )
                 else:
                     logger.warning(
-                        "⚠ Could not get duration for %s",
+                        "Could not get duration for %s",
                         song.get("title", song_id),
                     )
             else:
-                logger.warning("⚠ MP3 file not found: %s", mp3_filename)
+                logger.warning("MP3 file not found: %s", mp3_filename)
                 missing_files += 1
 
-        # Save the updated YAML file
-        with open(yaml_file_path, "w", encoding="utf-8") as file:
-            yaml.dump(data, file, default_flow_style=False, sort_keys=False)
+        save_yaml_atomic(yaml_file_path, data)
 
-        logger.info("✅ Analysis complete!")
-        logger.info("   Updated durations: %s", updated_count)
-        logger.info("   Missing MP3 files: %s", missing_files)
-        logger.info("   Total songs: %s", len(songs))
+        logger.info("Analysis complete!")
+        logger.info(
+            "Summary: updated=%s missing_files=%s total_songs=%s",
+            updated_count,
+            missing_files,
+            len(songs),
+        )
 
         return True
 
-    except FileNotFoundError:
-        logger.error("YAML file not found: %s", yaml_file_path)
+    except ConfigError as e:
+        logger.error("%s", e)
         return False
-    except yaml.YAMLError as e:
-        logger.error("Error parsing YAML file: %s", e)
-        return False
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger.error("Unexpected error: %s", e)
         return False
 
 
-def main():
+def main() -> bool:
     """Main function to analyze MP3 durations and update YAML."""
     parser = argparse.ArgumentParser(
         description="Analyze MP3 files and update lit_up_config.yaml with durations"
@@ -217,14 +180,14 @@ def main():
         durations_analyzed = analyze_and_update_durations(yaml_file_path, songs_dir)
 
         if durations_analyzed:
-            logger.info("🎉 Duration analysis completed successfully!")
+            logger.info("Duration analysis completed successfully!")
         else:
-            logger.error("❌ Duration analysis failed!")
+            logger.error("Duration analysis failed!")
 
         return durations_analyzed
 
-    except Exception as e:
-        logger.error("An unexpected error occurred: %s", e)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("An unexpected error occurred")
         return False
 
 

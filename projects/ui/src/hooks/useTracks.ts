@@ -34,21 +34,41 @@ function withBase(path: string): string {
   const trimmed = path.replace(/^\//, '');
   return `${BASE_URL}${trimmed}`;
 }
+export async function loadAppConfig(): Promise<AppConfig> {
+  const response = await fetch(withBase('appConfig.json'));
+  if (!response.ok) {
+    throw new Error(`Failed to load app config: ${response.statusText}`);
+  }
+
+  const config: AppConfig = await response.json();
+
+  const tracks = (config.tracks || []).map((t) => ({
+    ...t,
+    src: withBase(t.src),
+    cover: withBase(t.cover),
+  }));
+
+  const concatenatedPlaylist =
+    config.concatenatedPlaylist && config.concatenatedPlaylist.enabled
+      ? {
+          ...config.concatenatedPlaylist,
+          file: withBase(config.concatenatedPlaylist.file),
+        }
+      : undefined;
+
+  return {
+    ...config,
+    tracks,
+    concatenatedPlaylist,
+  };
+}
 
 // Load tracks from the generated appConfig.json
 // This file is generated from lit_up_config.yaml during the build process
 export const loadTracks = async (): Promise<Track[]> => {
   try {
-    const response = await fetch(withBase('appConfig.json'));
-    if (!response.ok) {
-      throw new Error(`Failed to load app config: ${response.statusText}`);
-    }
-    const config: AppConfig = await response.json();
-    return (config.tracks || []).map((t) => ({
-      ...t,
-      src: withBase(t.src),
-      cover: withBase(t.cover),
-    }));
+    const config = await loadAppConfig();
+    return config.tracks;
   } catch (error) {
     console.error('Error loading tracks from appConfig.json:', error);
     // Fallback to empty array if config loading fails

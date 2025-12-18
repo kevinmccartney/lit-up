@@ -92,3 +92,10 @@ body {
     transform: translateX(-100%);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee > h1 {
+    animation: none;
+    padding-left: 0;
+  }
+}

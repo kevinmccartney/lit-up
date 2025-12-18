@@ -12,11 +12,21 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
 import requests
 import yaml
-from mutagen import File
+from lit_up_script_utils import (
+    ConfigError,
+    create_filename_from_id,
+    format_duration,
+)
+from lit_up_script_utils import get_mp3_duration as get_mp3_duration_shared
+from lit_up_script_utils import (
+    load_yaml_dict,
+    require_list_field,
+    write_bytes_atomic,
+)
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
@@ -42,7 +52,7 @@ class Song(TypedDict, total=False):
     albumArtUrl: str
 
 
-def setup_driver(songs_dir):
+def setup_driver(songs_dir: Path) -> WebDriver:
     """Set up Chrome WebDriver with appropriate options and download preferences."""
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Run in headless mode
@@ -72,7 +82,7 @@ def setup_driver(songs_dir):
         raise
 
 
-def load_songs_from_yaml(yaml_file_path):
+def load_songs_from_yaml(yaml_file_path: Path) -> list[Song]:
     """
     Load songs from the lit_up_config.yaml file.
 
@@ -83,20 +93,16 @@ def load_songs_from_yaml(yaml_file_path):
         list: List of song dictionaries with 'url' and 'id' keys
     """
     try:
-        with open(yaml_file_path, "r", encoding="utf-8") as file:
-            data = yaml.safe_load(file)
+        data = load_yaml_dict(yaml_file_path)
 
-        if "songs" not in data:
-            logger.error("No 'songs' key found in YAML file")
-            return []
-
-        songs = data["songs"]
-        if not isinstance(songs, list):
-            logger.error("'songs' should be a list")
+        try:
+            songs = require_list_field(data, "songs", context="lit_up_config.yaml")
+        except ConfigError as e:
+            logger.error("%s", e)
             return []
 
         # Validate each song has required fields
-        valid_songs = []
+        valid_songs: list[Song] = []
         for i, song in enumerate(songs):
             if not isinstance(song, dict):
                 logger.warning("Song %s is not a dictionary, skipping", i + 1)
@@ -108,8 +114,14 @@ def load_songs_from_yaml(yaml_file_path):
                     i + 1,
                 )
                 continue
+            if not isinstance(song["url"], str) or not song["url"].strip():
+                logger.warning("Song %s has invalid url, skipping", i + 1)
+                continue
+            if not isinstance(song["id"], str) or not song["id"].strip():
+                logger.warning("Song %s has invalid id, skipping", i + 1)
+                continue
 
-            valid_songs.append(song)
+            valid_songs.append(cast(Song, song))
 
         logger.info(
             "Loaded %s songs from %s",
@@ -125,27 +137,11 @@ def load_songs_from_yaml(yaml_file_path):
         logger.error("Error parsing YAML file: %s", e)
         return []
     except Exception as e:
-        logger.error("Unexpected error loading YAML file: %s", e)
+        logger.exception("Unexpected error loading YAML file: %s", e)
         return []
 
 
-def create_filename_from_id(song_id, extension="mp3"):
-    """
-    Create a filename from a song ID.
-
-    Args:
-        song_id: The song ID from the YAML file
-        extension: File extension (default: "mp3")
-
-    Returns:
-        str: Safe filename using the song ID
-    """
-    # Clean the ID to make it filesystem-safe
-    safe_id = str(song_id).replace("/", "_").replace("\\", "_").replace(":", "_")
-    return f"{safe_id}.{extension}"
-
-
-def get_mp3_duration(mp3_file_path):
+def get_mp3_duration(mp3_file_path: Path) -> float | None:
     """
     Get the duration of an MP3 file in seconds.
 
@@ -155,43 +151,20 @@ def get_mp3_duration(mp3_file_path):
     Returns:
         float: Duration in seconds, or None if unable to determine
     """
-    try:
-        audio_file = File(mp3_file_path)
-        if audio_file is not None and hasattr(audio_file, "info"):
-            duration = audio_file.info.length
-            logger.info(
-                "✓ MP3 duration: %.2f seconds (%s)",
-                duration,
-                format_duration(duration),
-            )
-            return duration
-
-        logger.warning("⚠ Could not read MP3 file: %s", mp3_file_path)
-        return None
-    except Exception as e:
-        logger.warning("⚠ Error getting MP3 duration: %s", e)
+    duration = get_mp3_duration_shared(mp3_file_path)
+    if duration is None:
+        logger.warning("Could not read MP3 duration: %s", mp3_file_path)
         return None
 
-
-def format_duration(seconds):
-    """
-    Format duration in seconds to MM:SS format.
-
-    Args:
-        seconds: Duration in seconds
-
-    Returns:
-        str: Formatted duration string (MM:SS)
-    """
-    if seconds is None:
-        return "0:00"
-
-    minutes = int(seconds // 60)
-    seconds = int(seconds % 60)
-    return f"{minutes}:{seconds:02d}"
+    logger.debug(
+        "MP3 duration: %.2f seconds (%s)",
+        duration,
+        format_duration(duration),
+    )
+    return duration
 
 
-def download_album_art(album_art_url, output_path):
+def download_album_art(album_art_url: str, output_path: Path) -> bool:
     """
     Download album art from URL and save to specified path.
 
@@ -203,24 +176,19 @@ def download_album_art(album_art_url, output_path):
         bool: True if download was successful, False otherwise
     """
     try:
-        logger.info("Downloading album art from: %s", album_art_url)
-
-        # Create directory if it doesn't exist
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.debug("Downloading album art from: %s", album_art_url)
 
         # Download the image
         response = requests.get(album_art_url, timeout=30)
         response.raise_for_status()
 
-        # Save the image
-        with open(output_path, "wb") as f:
-            f.write(response.content)
+        write_bytes_atomic(output_path, response.content)
 
-        logger.info("✓ Album art downloaded: %s", output_path.name)
+        logger.info("Album art downloaded: %s", output_path.name)
         return True
 
-    except Exception as e:
-        logger.error("✗ Failed to download album art: %s", e)
+    except Exception:
+        logger.exception("Failed to download album art")
         return False
 
 
@@ -257,10 +225,10 @@ def _find_song_input(driver: WebDriver) -> WebElement | None:
         input_element = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "v"))
         )
-        logger.info("✓ Found input element with id 'v'")
+        logger.debug("Found input element with id 'v'")
         return input_element
     except TimeoutException:
-        logger.error("✗ Input element with id 'v' not found")
+        logger.error("Input element with id 'v' not found")
         return None
 
 
@@ -272,60 +240,58 @@ def _verify_mp3_button(driver: WebDriver) -> bool:
         )
         button_text = mp3_button.text.strip()
         if "MP3" in button_text.upper():
-            logger.info("✓ MP3 button found with text: '%s'", button_text)
+            logger.debug("MP3 button found with text: '%s'", button_text)
         else:
-            logger.warning("⚠ MP3 button found but text is: '%s'", button_text)
+            logger.warning("MP3 button found but text is: '%s'", button_text)
         return True
     except TimeoutException:
-        logger.error("✗ Button with id 'f' not found")
+        logger.error("Button with id 'f' not found")
         return False
 
 
 def _wait_for_conversion(driver: WebDriver) -> bool:
     """Wait for conversion progress to start and then complete."""
     try:
-        logger.info("Waiting for progress div to appear...")
+        logger.debug("Waiting for progress div to appear...")
         WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.ID, "progress"))
         )
-        logger.info("✓ Progress div found with id 'progress'")
+        logger.debug("Progress div found with id 'progress'")
     except TimeoutException:
-        logger.warning("⚠ Progress div with id 'progress' not found within timeout")
+        logger.warning("Progress div with id 'progress' not found within timeout")
         return False
 
     try:
-        logger.info("Waiting for conversion to complete (progress id removal)...")
+        logger.debug("Waiting for conversion to complete (progress id removal)...")
         WebDriverWait(driver, 300).until(  # 5 minute timeout for conversion
             lambda d: not d.find_elements(By.ID, "progress")
         )
-        logger.info("✓ Conversion completed - progress id removed")
+        logger.debug("Conversion completed - progress id removed")
         return True
     except TimeoutException:
-        logger.warning(
-            "⚠ Conversion timeout - progress id still present after 5 minutes"
-        )
+        logger.warning("Conversion timeout - progress id still present after 5 minutes")
         return False
 
 
 def _click_download_button(driver: WebDriver) -> bool:
     """Find and click the download button after conversion."""
-    logger.info("Looking for download button...")
+    logger.debug("Looking for download button...")
     try:
         form_element = driver.find_element(By.TAG_NAME, "form")
         form_divs = form_element.find_elements(By.TAG_NAME, "div")
         if len(form_divs) < 2:
-            logger.error("✗ Could not find the second div in form")
+            logger.error("Could not find the second div in form")
             return False
 
         progress_div = form_divs[1]  # Second div (index 1)
         download_button = progress_div.find_element(By.TAG_NAME, "button")
-        logger.info("✓ Found download button")
+        logger.debug("Found download button")
 
         download_button.click()
-        logger.info("✓ Clicked download button")
+        logger.debug("Clicked download button")
         return True
     except Exception as e:
-        logger.error("✗ Error during download process: %s", e)
+        logger.error("Error during download process: %s", e)
         return False
 
 
@@ -336,13 +302,14 @@ def _wait_for_download(
     expected_filename = create_filename_from_id(song_id, "mp3")
     expected_filepath = songs_dir / expected_filename
 
-    logger.info("Waiting for download to complete: %s", expected_filename)
-    logger.info("Expected file path: %s", expected_filepath)
+    logger.debug("Waiting for download to complete: %s", expected_filename)
+    logger.debug("Expected file path: %s", expected_filepath)
 
     start_time = time.time()
+    last_debug_log = 0.0
     while time.time() - start_time < download_timeout:
         if expected_filepath.exists():
-            logger.info("✓ Download completed: %s", expected_filename)
+            logger.info("Download completed: %s", expected_filename)
             get_mp3_duration(expected_filepath)
             return True
 
@@ -353,29 +320,30 @@ def _wait_for_download(
             ]
             if recent_files:
                 downloaded_file = recent_files[0]
-                logger.info("✓ Found recent MP3 file: %s", downloaded_file.name)
+                logger.debug("Found recent MP3 file: %s", downloaded_file.name)
                 try:
                     downloaded_file.rename(expected_filepath)
                     logger.info(
-                        "✓ Renamed %s to %s",
+                        "Renamed %s to %s",
                         downloaded_file.name,
                         expected_filename,
                     )
                     return True
                 except Exception as e:
-                    logger.warning("⚠ Could not rename file: %s", e)
+                    logger.warning("Could not rename file: %s", e)
                     return True  # Still successful since we found the file
 
         # Debugging: periodically list files in download directory
-        if int(time.time() - start_time) % 10 == 0:  # Every 10 seconds
+        if time.time() - last_debug_log >= 10:  # Every ~10 seconds
+            last_debug_log = time.time()
             existing_files = list(songs_dir.glob("*"))
             if existing_files:
-                logger.info(
+                logger.debug(
                     "Files in download directory: %s",
                     [f.name for f in existing_files],
                 )
             else:
-                logger.info("No files found in download directory yet")
+                logger.debug("No files found in download directory yet")
 
         time.sleep(1)
 
@@ -384,7 +352,7 @@ def _wait_for_download(
         "Download timeout. Files in directory: %s",
         [f.name for f in existing_files],
     )
-    logger.warning("⚠ Download timeout - file not found: %s", expected_filename)
+    logger.warning("Download timeout - file not found: %s", expected_filename)
     return False
 
 
@@ -411,13 +379,13 @@ def process_single_song(driver: WebDriver, song: Song, songs_dir: Path) -> bool:
 
         input_element.clear()
         input_element.send_keys(song_url)
-        logger.info("✓ Entered song URL: %s", song_url)
+        logger.debug("Entered song URL")
 
         if not _verify_mp3_button(driver):
             return False
 
         input_element.send_keys(Keys.RETURN)
-        logger.info("✓ Pressed Enter key in input field")
+        logger.debug("Pressed Enter key in input field")
 
         if not _wait_for_conversion(driver):
             return False
@@ -428,14 +396,18 @@ def process_single_song(driver: WebDriver, song: Song, songs_dir: Path) -> bool:
         time.sleep(2)  # Wait a moment for the download to start
         return _wait_for_download(songs_dir, song_id)
 
-    except Exception as e:
-        logger.error("Error processing song %s: %s", song_url, e)
+    except Exception:
+        logger.exception("Error processing song %s", song_url)
         return False
 
 
 def process_songs_on_y2mate(
-    driver, songs, songs_dir, album_art_dir, base_url="https://y2mate.nu/R2lu/"
-):
+    driver: WebDriver,
+    songs: list[Song],
+    songs_dir: Path,
+    album_art_dir: Path,
+    base_url: str = "https://y2mate.nu/R2lu/",
+) -> dict[str, bool]:
     """
     Load the Y2Mate website and process multiple songs.
 
@@ -449,7 +421,7 @@ def process_songs_on_y2mate(
     Returns:
         dict: Results of processing each song
     """
-    results = {}
+    results: dict[str, bool] = {}
 
     try:
         logger.info("Loading Y2Mate website: %s", base_url)
@@ -459,16 +431,16 @@ def process_songs_on_y2mate(
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
-        logger.info("✓ Page loaded successfully")
+        logger.debug("Page loaded successfully")
 
         # Check for div with id "logo" to verify we're on the right page
         try:
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.ID, "logo"))
             )
-            logger.info("✓ Div with id 'logo' found - confirmed on Y2Mate website")
+            logger.debug("Div with id 'logo' found - confirmed on Y2Mate website")
         except TimeoutException:
-            logger.warning("⚠ Div with id 'logo' not found - proceeding anyway")
+            logger.warning("Div with id 'logo' not found - proceeding anyway")
 
         # Process each song
         for i, song in enumerate(songs, 1):
@@ -489,12 +461,12 @@ def process_songs_on_y2mate(
             # If both files exist, skip processing entirely
             if mp3_filepath.exists() and album_art_exists:
                 logger.info(
-                    "✓ Both MP3 and album art already exist for song %s - skipping",
+                    "Both MP3 and album art already exist for song %s - skipping",
                     song["id"],
                 )
-                logger.info("  MP3: %s", mp3_filename)
+                logger.debug("MP3: %s", mp3_filename)
                 if "albumArtUrl" in song and song["albumArtUrl"]:
-                    logger.info("  Album Art: %s", album_art_filename)
+                    logger.debug("Album Art: %s", album_art_filename)
                 results[song["url"]] = True
                 continue
 
@@ -507,12 +479,12 @@ def process_songs_on_y2mate(
                     )
                     download_album_art(song["albumArtUrl"], album_art_filepath)
                 else:
-                    logger.info("✓ Album art already exists: %s", album_art_filename)
+                    logger.debug("Album art already exists: %s", album_art_filename)
 
             # Check if MP3 file exists - if it does, skip song processing
             if mp3_filepath.exists():
                 logger.info(
-                    "✓ MP3 file already exists: %s - skipping download",
+                    "MP3 file already exists: %s - skipping download",
                     mp3_filename,
                 )
                 results[song["url"]] = True
@@ -525,18 +497,18 @@ def process_songs_on_y2mate(
 
             # Wait between songs to avoid overwhelming the server
             if i < len(songs):
-                logger.info("Waiting 3 seconds before next song...")
+                logger.debug("Waiting 3 seconds before next song...")
                 time.sleep(3)
 
                 # Reload the page to reset the form state for the next song
-                logger.info("Reloading page to reset form state...")
+                logger.debug("Reloading page to reset form state...")
                 driver.refresh()
 
                 # Wait for page to reload
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
-                logger.info("✓ Page reloaded successfully")
+                logger.debug("Page reloaded successfully")
 
         return results
 
@@ -547,8 +519,12 @@ def process_songs_on_y2mate(
         logger.error("WebDriver error occurred: %s", e)
         return results
 
+    except Exception:
+        logger.exception("Unexpected error while processing songs")
+        return results
 
-def main():
+
+def main() -> int:
     """Main function to run the song processing automation."""
     # pylint: disable=too-many-locals
     parser = argparse.ArgumentParser(
@@ -598,7 +574,7 @@ def main():
             logger.info("  - url: 'https://youtube.com/watch?v=abc123'")
             logger.info("    id: 'unique-song-id'")
             logger.info("    albumArtUrl: 'https://example.com/album-art.jpg'")
-            return False
+            return 1
 
         # Set up WebDriver with download preferences
         driver = setup_driver(songs_dir)
@@ -615,7 +591,7 @@ def main():
         )
 
         for song_url, processed_song_success in results.items():
-            status = "✓ SUCCESS" if processed_song_success else "✗ FAILED"
+            status = "SUCCESS" if processed_song_success else "FAILED"
             # Find the corresponding song to get the ID
             song = next((s for s in songs if s["url"] == song_url), None)
             if song:
@@ -627,11 +603,11 @@ def main():
             else:
                 logger.info("  %s: %s", status, song_url)
 
-        return successful == total
+        return 0 if successful == total else 1
 
-    except Exception as e:
-        logger.error("An unexpected error occurred: %s", e)
-        return False
+    except Exception:
+        logger.exception("An unexpected error occurred")
+        return 1
 
     finally:
         if driver:
@@ -640,5 +616,4 @@ def main():
 
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    sys.exit(main())

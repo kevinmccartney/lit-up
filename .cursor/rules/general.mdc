@@ -1,0 +1,96 @@
+---
+description: General repo rules (monorepo conventions, formatting, linting, safe changes)
+globs: ['**/*']
+alwaysApply: true
+---
+
+# Cursor Project Rules
+
+## Repo layout
+
+- **Monorepo** with:
+  - `projects/ui`: Vite + React + TypeScript
+  - `projects/api`: Python scripts/tooling
+  - `projects/infra`: Terraform
+  - `scripts/git-hooks`: shared git hook scripts used by `lefthook.yml`
+  - `taskfile.yaml`: canonical developer commands
+
+## Formatting & linting (use the existing tools)
+
+- **Prettier** (global install) is the formatter for non-Python/non-Terraform:
+  - Prefer `task format:prettier` or `scripts/git-hooks/prettier_format.sh`.
+  - Keep Prettier away from Python/Terraform; rely on `.prettierignore`.
+- **UI (TypeScript/React)**:
+  - Lint via `cd projects/ui && npm run lint` (no `--fix`).
+  - Don't add ESLint rules that fight Prettier; use `eslint-config-prettier`.
+- **API (Python)**:
+  - Formatting: `black` + `isort` (black profile).
+  - Linting: `ruff` + `flake8` + `pylint` as configured.
+- **Infra (Terraform)**:
+  - Formatting: `terraform fmt` (and existing hook checks).
+
+## When making changes
+
+- **Follow existing patterns** in the codebase (structure, naming, error handling).
+- **Keep changes minimal and focused**; don't refactor unrelated code.
+- **Update hooks/tasks when relevant**:
+  - If you add a new formatter/linter, wire it into both `taskfile.yaml` and `lefthook.yml` when appropriate.
+  - Prefer adding new hook scripts in `scripts/git-hooks/` and keep them non-interactive.
+
+## TypeScript/React conventions
+
+- Prefer **type-only imports** (e.g. `import type { X } from '...'`) when possible.
+- Avoid relying on the `React` global namespace for types; import the needed types from `react`.
+- Hooks:
+  - Only call real React hooks in components/custom hooks.
+  - Don't name plain functions `useSomething` unless they are hooks.
+
+## React (UI) guidelines
+
+- **Component shape**:
+  - Prefer functional components with explicit return types when useful (e.g. `(): JSX.Element`).
+  - Keep components small; extract helpers/components instead of deeply nesting JSX.
+  - Avoid side effects in render; use `useEffect` for effects.
+- **Hooks & effects**:
+  - Follow the Rules of Hooks; no hooks in loops/conditions/nested functions.
+  - Keep effect dependencies correct; don't suppress deps warnings unless you really mean it.
+  - Prefer deriving values via `useMemo` only when it materially reduces work; otherwise keep it simple.
+  - Prefer `useCallback` only when needed for referential stability (memoized children, deps).
+- **Types**:
+  - Prefer `type` imports (`import type { ... }`) where possible.
+  - Don't use `React.*` namespace types unless you import them explicitly (or import `type React`).
+  - Keep Vite types working (e.g. `import.meta.env`) by ensuring `src/vite-env.d.ts` stays included.
+- **Accessibility (a11y)**:
+  - Use native interactive elements (`button`, `a`) for clickable UI.
+  - If you must use a non-native interactive element, add `role`, `tabIndex`, and keyboard handlers.
+  - Ensure images have appropriate `alt` text (or empty `alt=""` when decorative).
+- **Performance & UX**:
+  - Prefer CSS/layout solutions over JS where possible.
+  - Avoid unnecessary re-renders (stable props, memoize expensive derived values).
+  - Keep user-visible error states and loading states explicit and readable.
+
+## Terraform (infra) guidelines
+
+- **Formatting & validation**:
+  - Always keep `.tf` files formatted (`terraform fmt`).
+  - Prefer running `task infra:fmt` and `task infra:lint` for consistent checks.
+- **Structure & naming**:
+  - Follow existing file structure in `projects/infra` (don't reshuffle without a clear reason).
+  - Prefer small, focused resources; keep related resources together.
+  - Use consistent naming for resources, locals, and variables; avoid "magic strings".
+- **Variables, locals, outputs**:
+  - Prefer parameterizing environment-specific values as `variable`s.
+  - Use `locals` for computed values and to keep expressions readable.
+  - Add `output`s when needed for other stacks/scripts; mark sensitive outputs as `sensitive = true`.
+- **Providers & versions**:
+  - Respect the repo's pinned provider/terraform versions (`versions.tf`); don't loosen constraints casually.
+  - Don't add new providers unless necessary; document why.
+- **Safety**:
+  - Avoid `-target` workflows unless debugging; prefer `plan` → review → `apply`.
+  - Be careful with destructive changes (S3, CloudFront, DNS, certs); call out risks in PR descriptions.
+  - Use `lifecycle` sparingly and intentionally (`prevent_destroy` only when justified).
+
+## Safety & DX
+
+- Avoid adding heavy new dependencies without a clear need.
+- Prefer deterministic, repeatable commands via `task` and project-local scripts.

@@ -2,13 +2,20 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+const isDevLoggingEnabled = (() => {
+  const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
+  return flag === 'true' || flag === '1';
+})();
+
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL || '/'}sw.js`)
       .then((registration) => {
-        console.log('SW registered: ', registration);
+        if (isDevLoggingEnabled) {
+          console.log('SW registered: ', registration);
+        }
 
         // Check for updates
         registration.addEventListener('updatefound', () => {
@@ -29,7 +36,7 @@ if ('serviceWorker' in navigator) {
         });
       })
       .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
+        console.error('SW registration failed: ', registrationError);
       });
   });
 }

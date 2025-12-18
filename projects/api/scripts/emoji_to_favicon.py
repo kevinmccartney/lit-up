@@ -15,11 +15,23 @@ Formats:
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import cairosvg
 import yaml
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+class ConfigError(Exception):
+    """Raised when the config file cannot be read or has unexpected structure."""
 
 
 def emoji_to_svg_text(emoji: str, size: int = 32) -> str:
@@ -32,7 +44,8 @@ def emoji_to_svg_text(emoji: str, size: int = 32) -> str:
     center = size // 2
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}"
-     xmlns="http://www.w3.org/2000/svg">
+     xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Favicon">
+    <title>Favicon</title>
     <rect width="{size}" height="{size}" fill="transparent"/>
     <text x="{center}" y="{center}"
           font-family="{font_family}"
@@ -60,17 +73,35 @@ def emoji_to_png(emoji: str, size: int = 32) -> bytes:
     return png_bytes
 
 
-def load_config(config_path: Path) -> dict:
+def load_config(config_path: Path) -> dict[str, Any]:
     """Load the config file."""
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            data = yaml.safe_load(f) or {}
+
+        if not isinstance(data, dict):
+            raise ConfigError(f"Config root must be a mapping/dict: {config_path}")
+
+        return data
     except (OSError, IOError, yaml.YAMLError) as e:
-        print(f"Error reading config file: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise ConfigError(f"Error reading config file: {config_path}: {e}") from e
 
 
-def main():
+def resolve_emoji(*, config_path: Path | None, emoji_arg: str | None) -> str:
+    if config_path is not None:
+        config = load_config(config_path)
+        favicon = config.get("favicon", "?")
+        if not isinstance(favicon, str) or not favicon.strip():
+            raise ConfigError("'favicon' must be a non-empty string in config")
+        return favicon
+
+    if emoji_arg is not None and emoji_arg.strip():
+        return emoji_arg
+
+    raise ValueError("Either --config or --emoji must be provided")
+
+
+def main() -> int:
     """Runs the Emoji to Favicon script."""
     parser = argparse.ArgumentParser(
         description="Convert an emoji to a favicon SVG or PNG"
@@ -83,7 +114,7 @@ def main():
     parser.add_argument(
         "--emoji",
         help=(
-            "The emoji to convert (e.g., 🎵, 🔥, etc.) "
+            "The emoji to convert (a single Unicode emoji character) "
             "- required if --config not used"
         ),
     )
@@ -111,19 +142,14 @@ def main():
 
     args = parser.parse_args()
 
-    # Get emoji from config or argument
-    emoji = None
-    if args.config:
-        config = load_config(args.config)
-        emoji = config.get("favicon", "♍️")
-    elif args.emoji:
-        emoji = args.emoji
-    else:
-        parser.error("Either --config or --emoji must be provided")
-
-    if not emoji:
-        print("Error: No emoji found in config or provided", file=sys.stderr)
-        sys.exit(1)
+    try:
+        emoji = resolve_emoji(config_path=args.config, emoji_arg=args.emoji)
+    except ValueError as e:
+        parser.error(str(e))
+        return 2  # pragma: no cover
+    except ConfigError as e:
+        logger.error("%s", e)
+        return 1
 
     # Determine output file path
     if args.output:
@@ -141,8 +167,9 @@ def main():
 
     size_str = f"{args.size}x{args.size}"
     format_upper = args.format.upper()
-    print(f"✓ Created {output_path} ({size_str}px) as {format_upper}")
+    logger.info("Created %s (%spx) as %s", output_path, size_str, format_upper)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

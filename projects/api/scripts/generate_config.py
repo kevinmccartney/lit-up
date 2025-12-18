@@ -7,49 +7,65 @@ the app.
 
 import argparse
 import datetime
-import json
+import logging
 import secrets
 import sys
 from pathlib import Path
+from typing import Any
 
-import yaml
+from lit_up_script_utils import (
+    ConfigError,
+    load_yaml_dict,
+    require_list_field,
+    save_json_atomic,
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
-def generate_app_config(config_path: Path, out_dir: Path):
+def generate_app_config(config_path: Path, out_dir: Path) -> bool:
     """Generate appConfig.json from lit_up_config.yaml."""
     # Check if YAML file exists
-    if not config_path.exists():
-        print(f"❌ Error: {config_path} not found")
-        return False
-
-    # Load YAML file
-    print(f"📖 Loading configuration from {config_path}")
-    with open(config_path, "r", encoding="utf-8") as f:
-        yaml_error = getattr(yaml, "YAMLError", Exception)
-        try:
-            data = yaml.safe_load(f)
-        except yaml_error as e:  # type: ignore[misc]
-            print(f"❌ Error parsing YAML file: {e}")
-            return False
-
-    if "songs" not in data:
-        print("❌ Error: No 'songs' key found in YAML file")
+    logger.info("Loading configuration from %s", config_path)
+    try:
+        data = load_yaml_dict(config_path)
+    except ConfigError as e:
+        logger.error("%s", e)
         return False
 
     # Optional site-wide header message
     header_message = data.get("header_message")
 
     # Transform songs to app format
-    tracks = []
-    for song in data["songs"]:
+    try:
+        songs = require_list_field(data, "songs", context="lit_up_config.yaml")
+    except ConfigError as e:
+        logger.error("%s", e)
+        return False
+
+    tracks: list[dict[str, Any]] = []
+    for song in songs:
+        if not isinstance(song, dict):
+            logger.warning("Skipping non-dict song entry: %r", song)
+            continue
+
         # Validate required fields
         required_fields = ["id", "title", "artist", "duration"]
         missing_fields = [field for field in required_fields if field not in song]
         if missing_fields:
-            print(
-                f"⚠️  Warning: Song {song.get('id', 'unknown')} "
-                f"missing fields: {missing_fields}"
+            logger.warning(
+                "Song %s missing fields: %s",
+                song.get("id", "unknown"),
+                missing_fields,
             )
+            continue
+
+        if not isinstance(song["id"], str) or not song["id"].strip():
+            logger.warning("Skipping song with invalid id: %r", song["id"])
             continue
 
         track = {
@@ -64,12 +80,12 @@ def generate_app_config(config_path: Path, out_dir: Path):
         tracks.append(track)
 
     if not tracks:
-        print("❌ Error: No valid tracks found in YAML file")
+        logger.error("Error: No valid tracks found in YAML file")
         return False
 
     # Create app config
     build_hash = secrets.token_hex(16)
-    app_config = {
+    app_config: dict[str, Any] = {
         "tracks": tracks,
         "headerMessage": header_message,
         "buildDatetime": datetime.datetime.now().isoformat(),
@@ -80,15 +96,14 @@ def generate_app_config(config_path: Path, out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
     output_path = out_dir / "appConfig.json"
 
-    print(f"💾 Saving configuration to {output_path}")
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(app_config, f, indent=2)
+    logger.info("Saving configuration to %s", output_path)
+    save_json_atomic(output_path, app_config, indent=2)
 
-    print(f"✅ Generated appConfig.json with {len(tracks)} tracks")
+    logger.info("Generated appConfig.json with %s tracks", len(tracks))
     return True
 
 
-def main():
+def main() -> int:
     """Main function."""
     parser = argparse.ArgumentParser(
         description="Convert lit_up_config.yaml to appConfig.json for the React app"
@@ -108,14 +123,15 @@ def main():
 
     args = parser.parse_args()
 
-    print("🔄 Converting YAML to JSON...")
+    logger.info("Converting YAML to JSON...")
     success = generate_app_config(args.config.resolve(), args.out_dir.resolve())
 
     if not success:
-        sys.exit(1)
+        return 1
 
-    print("🎉 Configuration generation completed successfully!")
+    logger.info("Configuration generation completed successfully!")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

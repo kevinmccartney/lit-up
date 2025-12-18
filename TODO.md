@@ -34,7 +34,7 @@
   - [x] tflint
   - [x] tf format
 - [x] chore: add instructions file
-- [ ] refactor: clean up repo in general (with the help of cursor 🤖)
+- [x] refactor: clean up repo in general (with the help of cursor 🤖)
 - [ ] feat: build songs REST resources
 - [ ] feat: build playlist REST resources
 - [ ] chore: host OpenAPI spec

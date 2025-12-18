@@ -7,6 +7,12 @@ function getScopePath() {
   }
 }
 
+const DEBUG =
+  self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+const log = (...args) => {
+  if (DEBUG) console.log(...args);
+};
+
 const SCOPE_PATH = getScopePath();
 const CACHE_KEY = SCOPE_PATH.replace(/[^a-zA-Z0-9_-]/g, '_');
 const CACHE_NAME = 'lit-up-static-' + CACHE_KEY;
@@ -24,16 +30,16 @@ const STATIC_CACHE_FILES = [
 
 // Install event - cache static files
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  log('Service Worker: Installing...');
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching static files');
+        log('Service Worker: Caching static files');
         return cache.addAll(STATIC_CACHE_FILES);
       })
       .then(() => {
-        console.log('Service Worker: Installation complete');
+        log('Service Worker: Installation complete');
         return self.skipWaiting();
       }),
   );
@@ -41,7 +47,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+  log('Service Worker: Activating...');
   event.waitUntil(
     caches
       .keys()
@@ -49,14 +55,14 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME && cacheName !== AUDIO_CACHE_NAME) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
+              log('Service Worker: Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           }),
         );
       })
       .then(() => {
-        console.log('Service Worker: Activation complete');
+        log('Service Worker: Activation complete');
         return self.clients.claim();
       }),
   );
@@ -73,7 +79,7 @@ self.addEventListener('fetch', (event) => {
       caches.open(AUDIO_CACHE_NAME).then((cache) => {
         return cache.match(request).then((response) => {
           if (response) {
-            console.log('Service Worker: Serving audio from cache:', url.pathname);
+            log('Service Worker: Serving audio from cache:', url.pathname);
             return response;
           }
 
@@ -81,13 +87,13 @@ self.addEventListener('fetch', (event) => {
             .then((fetchResponse) => {
               // Cache successful audio responses
               if (fetchResponse.status === 200) {
-                console.log('Service Worker: Caching audio file:', url.pathname);
+                log('Service Worker: Caching audio file:', url.pathname);
                 cache.put(request, fetchResponse.clone());
               }
               return fetchResponse;
             })
             .catch((error) => {
-              console.log('Service Worker: Audio fetch failed:', error);
+              log('Service Worker: Audio fetch failed:', error);
               // Return a fallback or error response
               return new Response('Audio not available offline', {
                 status: 503,
@@ -104,7 +110,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((response) => {
       if (response) {
-        console.log('Service Worker: Serving from cache:', url.pathname);
+        log('Service Worker: Serving from cache:', url.pathname);
         return response;
       }
 
@@ -128,7 +134,7 @@ self.addEventListener('fetch', (event) => {
           return fetchResponse;
         })
         .catch((error) => {
-          console.log('Service Worker: Fetch failed:', error);
+          log('Service Worker: Fetch failed:', error);
           // Return offline page for navigation requests
           if (request.mode === 'navigate') {
             return caches.match('/index.html');
@@ -142,7 +148,7 @@ self.addEventListener('fetch', (event) => {
 // Background sync for better audio handling
 self.addEventListener('sync', (event) => {
   if (event.tag === 'audio-sync') {
-    console.log('Service Worker: Background sync for audio');
+    log('Service Worker: Background sync for audio');
     event.waitUntil(
       // Handle any pending audio operations
       Promise.resolve(),
@@ -152,7 +158,7 @@ self.addEventListener('sync', (event) => {
 
 // Push notifications (for future use)
 self.addEventListener('push', () => {
-  console.log('Service Worker: Push notification received');
+  log('Service Worker: Push notification received');
   // Handle push notifications if needed
 });
 

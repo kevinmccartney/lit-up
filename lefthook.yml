@@ -15,9 +15,6 @@ pre-commit:
     lint_api:
       glob: 'projects/api/**/*.{py}'
       run: cd projects/api && ruff check .
-    python_lint:
-      glob: 'projects/api/**/*.py'
-      run: scripts/git-hooks/python_lint.sh {staged_files}
     isort_api:
       glob: 'projects/api/**/*.py'
       run: scripts/git-hooks/isort_format.sh {staged_files}

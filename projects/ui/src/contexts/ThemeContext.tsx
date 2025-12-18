@@ -1,9 +1,11 @@
-import React, {
+import {
   createContext,
+  useCallback,
   useContext,
-  useState,
   useEffect,
-  ReactNode,
+  useMemo,
+  useState,
+  type ReactNode,
 } from 'react';
 import { themes as themesConstants } from '../constants';
 
@@ -60,52 +62,75 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-interface ThemeProviderProps {
-  children: ReactNode;
+function isThemeKey(value: unknown): value is ThemeKey {
+  return (
+    value === 'coral' ||
+    value === 'magenta' ||
+    value === 'pink' ||
+    value === 'teal' ||
+    value === 'cyan'
+  );
 }
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(themes.coral);
-  const [primaryColor, setPrimaryColor] = useState<string>(themes.coral.primary);
-  const [secondaryColor, setSecondaryColor] = useState<string>(themes.coral.secondary);
-  const [tertiaryColor, setTertiaryColor] = useState<string>(themes.coral.tertiary);
+function parseStoredThemeKey(stored: string | null): ThemeKey | null {
+  if (!stored) return null;
+
+  // New format: just store the key, e.g. "coral"
+  if (isThemeKey(stored)) return stored;
+
+  // Backward compatibility: old format was JSON stringified Theme object
+  try {
+    const parsed = JSON.parse(stored) as unknown;
+    if (parsed && typeof parsed === 'object' && 'name' in parsed) {
+      const maybeName = (parsed as { name?: unknown }).name;
+      if (isThemeKey(maybeName)) return maybeName;
+    }
+  } catch {
+    // ignore malformed storage values
+  }
+
+  return null;
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
+  const [themeKey, setThemeKey] = useState<ThemeKey>('coral');
   const [isLoaded, setIsLoaded] = useState(false);
+
+  const theme = useMemo(() => themes[themeKey], [themeKey]);
+  const primaryColor = theme.primary;
+  const secondaryColor = theme.secondary;
+  const tertiaryColor = theme.tertiary;
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const storedTheme = localStorage.getItem('app-theme');
-    const savedTheme: Theme = (storedTheme && JSON.parse(storedTheme)) || themes.coral;
-    setTheme(savedTheme);
-    setPrimaryColor(savedTheme.primary);
-    setSecondaryColor(savedTheme.secondary);
-    setTertiaryColor(savedTheme.tertiary);
-    document.documentElement.setAttribute('data-theme', savedTheme.name);
+    const savedThemeKey = parseStoredThemeKey(storedTheme) ?? 'coral';
+    setThemeKey(savedThemeKey);
+    document.documentElement.setAttribute('data-theme', savedThemeKey);
     setIsLoaded(true);
   }, []);
 
   // Update theme and persist to localStorage
-  const updateTheme = (themeKey: ThemeKey) => {
-    const newTheme = themes[themeKey];
-    setTheme(newTheme);
-    setPrimaryColor(newTheme.primary);
-    setSecondaryColor(newTheme.secondary);
-    setTertiaryColor(newTheme.tertiary);
-    localStorage.setItem('app-theme', JSON.stringify(newTheme));
-    document.documentElement.setAttribute('data-theme', newTheme.name);
-  };
+  const updateTheme = useCallback((themeKey: ThemeKey) => {
+    setThemeKey(themeKey);
+    localStorage.setItem('app-theme', themeKey);
+    document.documentElement.setAttribute('data-theme', themeKey);
+  }, []);
 
-  const value: ThemeContextType = {
-    theme,
-    updateTheme,
-    isLoaded,
-    primaryColor,
-    secondaryColor,
-    tertiaryColor,
-    themes,
-  };
+  const value = useMemo<ThemeContextType>(() => {
+    return {
+      theme,
+      updateTheme,
+      isLoaded,
+      primaryColor,
+      secondaryColor,
+      tertiaryColor,
+      themes,
+    };
+  }, [isLoaded, primaryColor, secondaryColor, tertiaryColor, theme, updateTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-};
+}
 
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);

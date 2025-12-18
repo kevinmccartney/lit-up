@@ -8,13 +8,7 @@ import {
 } from 'react';
 import MediaPlayer, { MediaPlayerRef } from './components/MediaPlayer';
 import MediaLibrary, { Track } from './components/MediaLibrary';
-import {
-  AppConfig,
-  ConcatenatedPlaylist,
-  getAppConfigUrl,
-  loadTracks,
-  withAppBase,
-} from './hooks/useTracks';
+import { ConcatenatedPlaylist, loadAppConfig, loadTracks } from './hooks/useTracks';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Heart, Settings } from 'lucide-react';
 import ThemePicker from './components/ThemePicker';
@@ -30,7 +24,7 @@ function AppContent(): JSX.Element {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [headerMessage, setHeaderMessage] = useState<string>('');
-  const [showMeadow, setShowMeadow] = useState<boolean>(false);
+  const [showSecretTrack, setShowSecretTrack] = useState<boolean>(false);
   const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [mainPlayerPaused, setMainPlayerPaused] = useState<boolean>(false);
@@ -45,14 +39,20 @@ function AppContent(): JSX.Element {
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const mainPlayerRef = useRef<MediaPlayerRef>(null);
   const { theme, primaryColor, secondaryColor, tertiaryColor } = useTheme();
+  const isDevLoggingEnabled = useMemo(() => {
+    const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
+    return flag === 'true' || flag === '1';
+  }, []);
   const secretTrack = useMemo(
     () => allTracks.find((track) => track.isSecret) ?? null,
     [allTracks],
   );
 
   useEffect(() => {
-    console.log(theme);
-  }, [theme]);
+    if (isDevLoggingEnabled) {
+      console.log('Theme updated:', theme.name);
+    }
+  }, [isDevLoggingEnabled, theme.name]);
 
   // Close dropdown when screen goes below md breakpoint (768px)
   useEffect(() => {
@@ -92,31 +92,22 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     const loadTracksData = async () => {
       try {
-        // Load tracks
-        const loadedTracks = await loadTracks();
-        // Also fetch build info and concatenated playlist data
-        try {
-          const res = await fetch(getAppConfigUrl());
-          if (res.ok) {
-            const cfg: AppConfig = await res.json();
-            if (typeof cfg.headerMessage === 'string' && cfg.headerMessage.trim()) {
-              setHeaderMessage(cfg.headerMessage.trim());
-            }
-            setBuildInfo({
-              buildDatetime: cfg.buildDatetime,
-              buildHash: cfg.buildHash,
-            });
-            // Check for concatenated playlist
-            if (cfg.concatenatedPlaylist && cfg.concatenatedPlaylist.enabled) {
-              setConcatenatedPlaylist({
-                ...cfg.concatenatedPlaylist,
-                file: withAppBase(cfg.concatenatedPlaylist.file),
-              });
-            }
-          }
-        } catch (e) {
-          // ignore build info errors
+        const cfg = await loadAppConfig();
+        const loadedTracks = cfg.tracks;
+
+        if (typeof cfg.headerMessage === 'string' && cfg.headerMessage.trim()) {
+          setHeaderMessage(cfg.headerMessage.trim());
         }
+
+        setBuildInfo({
+          buildDatetime: cfg.buildDatetime,
+          buildHash: cfg.buildHash,
+        });
+
+        if (cfg.concatenatedPlaylist && cfg.concatenatedPlaylist.enabled) {
+          setConcatenatedPlaylist(cfg.concatenatedPlaylist);
+        }
+
         setAllTracks(loadedTracks);
         // Filter out secret tracks from the main tracks list
         const publicTracks = loadedTracks.filter((track) => !track.isSecret);
@@ -126,6 +117,14 @@ function AppContent(): JSX.Element {
         }
       } catch (error) {
         console.error('Failed to load tracks:', error);
+        // Fallback to the existing behavior if config parsing fails for any reason.
+        const loadedTracks = await loadTracks();
+        setAllTracks(loadedTracks);
+        const publicTracks = loadedTracks.filter((track) => !track.isSecret);
+        setTracks(publicTracks);
+        if (publicTracks.length > 0) {
+          setSelectedTrack(publicTracks[0]);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -156,8 +155,8 @@ function AppContent(): JSX.Element {
     const version = getCurrentVersion();
     const baseTitle = `Lit Up ${version}`;
 
-    // Determine which track is effectively playing (secret track takes precedence when meadow is shown)
-    const activeSecret = showMeadow && secretTrackPlaying && secretTrack;
+    // Determine which track is effectively playing (secret track takes precedence when secret track view is shown)
+    const activeSecret = showSecretTrack && secretTrackPlaying && secretTrack;
     const activeTrack = activeSecret ? secretTrack : selectedTrack;
 
     if (activeTrack) {
@@ -171,7 +170,7 @@ function AppContent(): JSX.Element {
   }, [
     selectedTrack,
     isPlaying,
-    showMeadow,
+    showSecretTrack,
     secretTrackPlaying,
     secretTrack,
     getCurrentVersion,
@@ -284,13 +283,13 @@ function AppContent(): JSX.Element {
   }, [concatenatedPlaylist, handleNext, isTransitioning]);
 
   const handlePlayPause = useCallback(() => {
-    setIsPlaying(!isPlaying);
-  }, [isPlaying]);
+    setIsPlaying((prev) => !prev);
+  }, []);
 
   const handleHeartClick = useCallback(() => {
-    if (!showMeadow && secretTrack) {
-      // Show meadow and start playing secret track
-      setShowMeadow(true);
+    if (!showSecretTrack && secretTrack) {
+      // Show secret track view and start playing secret track
+      setShowSecretTrack(true);
       setSecretTrackPlaying(true);
       // Pause main player if it's playing
       if (isPlaying && mainPlayerRef.current) {
@@ -298,8 +297,8 @@ function AppContent(): JSX.Element {
         mainPlayerRef.current.pause();
       }
     } else {
-      // Hide meadow and stop secret track
-      setShowMeadow(false);
+      // Hide secret track view and stop secret track
+      setShowSecretTrack(false);
       setSecretTrackPlaying(false);
       // Resume main player if it was paused
       if (mainPlayerPaused && mainPlayerRef.current) {
@@ -307,10 +306,10 @@ function AppContent(): JSX.Element {
         setMainPlayerPaused(false);
       }
     }
-  }, [showMeadow, secretTrack, isPlaying, mainPlayerPaused]);
+  }, [showSecretTrack, secretTrack, isPlaying, mainPlayerPaused]);
 
-  const handleMeadowClick = useCallback(() => {
-    setShowMeadow(false);
+  const handleSecretTrackClick = useCallback(() => {
+    setShowSecretTrack(false);
     setSecretTrackPlaying(false);
     // Resume main player if it was paused
     if (mainPlayerPaused && mainPlayerRef.current) {
@@ -321,7 +320,15 @@ function AppContent(): JSX.Element {
 
   // Handle media key events (play/pause, forward, back buttons on keyboard)
   useEffect(() => {
+    const isTypingContext = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      return target.isContentEditable;
+    };
+
     const handleMediaKeyDown = (event: KeyboardEvent) => {
+      if (isTypingContext(event.target)) return;
       // Check for media keys
       switch (event.code) {
         case 'MediaPlayPause':
@@ -344,6 +351,7 @@ function AppContent(): JSX.Element {
 
     // Also listen for the older keyCode events for broader compatibility
     const handleLegacyMediaKeys = (event: KeyboardEvent) => {
+      if (isTypingContext(event.target)) return;
       switch (event.keyCode) {
         case 179: // MediaPlayPause or F8 equivalent
           event.preventDefault();
@@ -373,28 +381,38 @@ function AppContent(): JSX.Element {
   useEffect(() => {
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', () => {
-        console.log('Media Session: Play action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Play action triggered');
+        }
         handlePlayPause();
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('Media Session: Pause action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Pause action triggered');
+        }
         handlePlayPause();
       });
 
       navigator.mediaSession.setActionHandler('previoustrack', () => {
-        console.log('Media Session: Previous track action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Previous track action triggered');
+        }
         handlePrevious();
       });
 
       navigator.mediaSession.setActionHandler('nexttrack', () => {
-        console.log('Media Session: Next track action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Next track action triggered');
+        }
         handleNext();
       });
 
       // Add seekbackward and seekforward for better PWA support
       navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        console.log('Media Session: Seek backward action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Seek backward action triggered');
+        }
         if (mainPlayerRef.current) {
           const currentTime = mainPlayerRef.current.getCurrentTime();
           const seekTime = Math.max(0, currentTime - (details.seekOffset || 10));
@@ -403,7 +421,9 @@ function AppContent(): JSX.Element {
       });
 
       navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        console.log('Media Session: Seek forward action triggered');
+        if (isDevLoggingEnabled) {
+          console.log('Media Session: Seek forward action triggered');
+        }
         if (mainPlayerRef.current) {
           const currentTime = mainPlayerRef.current.getCurrentTime();
           const seekTime = currentTime + (details.seekOffset || 10);
@@ -411,7 +431,7 @@ function AppContent(): JSX.Element {
         }
       });
     }
-  }, [handlePlayPause, handleNext, handlePrevious]);
+  }, [handlePlayPause, handleNext, handlePrevious, isDevLoggingEnabled]);
 
   // Update Media Session metadata when track changes
   useEffect(() => {
@@ -530,10 +550,10 @@ function AppContent(): JSX.Element {
         </div>
       </header>
       <main className="flex-1 flex flex-col md:gap-4 px-0 md:px-4 min-h-0 sm:overflow-y-auto md:overflow-y-hidden">
-        {/* Main interface - hidden when meadow is shown */}
+        {/* Main interface - hidden when secret track view is shown */}
         <div
           className={`flex-1 flex flex-col md:flex-row md:gap-4 min-h-0 ${
-            showMeadow ? 'hidden' : ''
+            showSecretTrack ? 'hidden' : ''
           }`}
         >
           <MediaLibrary
@@ -577,20 +597,24 @@ function AppContent(): JSX.Element {
           )}
         </div>
 
-        {/* Meadow view - shown when meadow is active */}
-        {showMeadow && secretTrack && (
+        {/* Secret track view - shown when active */}
+        {showSecretTrack && secretTrack && (
           <div
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                handleMeadowClick();
+                handleSecretTrackClick();
               }
             }}
             className="flex-1 flex items-center justify-center cursor-pointer"
-            onClick={handleMeadowClick}
+            onClick={handleSecretTrackClick}
           >
-            <img src={secretTrack.cover} alt="Meadow" className="object-contain" />
+            <img
+              src={secretTrack.cover}
+              alt="Secret track artwork"
+              className="object-contain"
+            />
             {/* Hidden audio element for secret track */}
             <audio
               key={`secret-audio-${secretTrack.id}`}
@@ -610,8 +634,10 @@ function AppContent(): JSX.Element {
         <p className="flex items-center justify-center gap-2">
           Built with{' '}
           <button
+            type="button"
             className={`border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-[var(--theme-tertiary)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed`}
             onClick={handleHeartClick}
+            aria-label={showSecretTrack ? 'Hide secret track' : 'Show secret track'}
           >
             <Heart fill="currentColor" stroke="currentColor" size={16} />
           </button>

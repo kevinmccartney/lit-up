@@ -368,18 +368,22 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
               className={`flex flex-row justify-center items-center gap-5 text-[var(--theme-secondary)]`}
             >
               <button
+                type="button"
                 className={`border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-[var(--theme-tertiary)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed`}
                 onClick={onPrevious}
                 disabled={!hasPrevious || isLoading}
                 title="Previous track"
+                aria-label="Previous track"
               >
                 <SkipBack fill="currentColor" />
               </button>
 
               <button
+                type="button"
                 className={`border-0 rounded-full w-18 h-18 text-4xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-[var(--theme-tertiary)] hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed`}
                 onClick={togglePlayPause}
                 disabled={isLoading}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isLoading ? (
                   <span className="animate-spin">
@@ -393,10 +397,12 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
               </button>
 
               <button
+                type="button"
                 className="border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-[var(--theme-tertiary)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={onNext}
                 disabled={!hasNext || isLoading}
                 title="Next track"
+                aria-label="Next track"
               >
                 <SkipForward fill="currentColor" />
               </button>
@@ -405,9 +411,11 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
 
           <div className="mt-2 md:mt-5 w-full">
             <button
+              type="button"
               className={`bg-[var(--theme-primary)] h-2 rounded-sm overflow-hidden mb-2 backdrop-blur-sm cursor-pointer transition-all duration-300 relative hover:h-2.5 hover:-translate-y-0.5 active:translate-y-0`}
               onClick={handleProgressBarClick}
               title="Click to seek"
+              aria-label="Seek within track"
             >
               <div
                 className={`bg-[var(--theme-secondary)] h-full transition-all duration-100 rounded-sm relative hover:bg-[var(--theme-secondary)] hover:shadow-lg hover:shadow-black/50`}

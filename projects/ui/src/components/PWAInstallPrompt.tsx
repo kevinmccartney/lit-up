@@ -11,6 +11,10 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const PWAInstallPrompt: React.FC = () => {
+  const isDevLoggingEnabled = (() => {
+    const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
+    return flag === 'true' || flag === '1';
+  })();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
     null,
   );
@@ -26,7 +30,9 @@ const PWAInstallPrompt: React.FC = () => {
     };
 
     const handleAppInstalled = () => {
-      console.log('PWA was installed');
+      if (isDevLoggingEnabled) {
+        console.log('PWA was installed');
+      }
       setShowInstallPrompt(false);
       setDeferredPrompt(null);
     };
@@ -38,7 +44,7 @@ const PWAInstallPrompt: React.FC = () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [isDevLoggingEnabled]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -50,9 +56,13 @@ const PWAInstallPrompt: React.FC = () => {
     const { outcome } = await deferredPrompt.userChoice;
 
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
+      if (isDevLoggingEnabled) {
+        console.log('User accepted the install prompt');
+      }
     } else {
-      console.log('User dismissed the install prompt');
+      if (isDevLoggingEnabled) {
+        console.log('User dismissed the install prompt');
+      }
     }
 
     // Clear the deferredPrompt
@@ -91,12 +101,15 @@ const PWAInstallPrompt: React.FC = () => {
           <div className="flex gap-2">
             <button
               onClick={handleInstallClick}
+              type="button"
               className="px-3 py-1.5 bg-[var(--theme-secondary)] text-[var(--theme-tertiary)] rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Install
             </button>
             <button
               onClick={handleDismiss}
+              type="button"
+              aria-label="Dismiss install prompt"
               className="px-3 py-1.5 text-[var(--theme-primary)] opacity-60 hover:opacity-100 transition-opacity"
             >
               <X className="w-4 h-4" />
