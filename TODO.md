@@ -33,9 +33,10 @@
   - [x] pylint/flake8
   - [x] tflint
   - [x] tf format
+- [x] chore: add instructions file
 - [ ] refactor: clean up repo in general (with the help of cursor 🤖)
-- [ ] chore: add instructions file
-- [ ] feat: build playlist and songs REST resources
+- [ ] feat: build songs REST resources
+- [ ] feat: build playlist REST resources
 - [ ] chore: host OpenAPI spec
 - [ ] infra: build file storage for converted songs
 - [ ] build: create CI
