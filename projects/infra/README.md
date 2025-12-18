@@ -66,6 +66,7 @@ terraform apply
 ```
 
 This creates:
+
 - S3 bucket for Terraform state
 - DynamoDB table for state locking
 
@@ -284,4 +285,3 @@ infra/
 - [Terraform AWS Provider Documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 - [CloudFront Documentation](https://docs.aws.amazon.com/cloudfront/)
 - [Lambda@Edge Documentation](https://docs.aws.amazon.com/lambda/latest/dg/lambda-edge.html)
-

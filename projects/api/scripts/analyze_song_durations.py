@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 """
-Script to analyze existing MP3 files and update lit_up_config.yaml with actual durations.
+Script to analyze existing MP3 files and update lit_up_config.yaml with actual durations
 This script reads the lit_up_config.yaml file, checks for corresponding MP3 files,
 and updates the duration field with the actual duration from the MP3 files.
 """
+# pylint: disable=broad-exception-caught
 
 import argparse
-import yaml
 import logging
+import sys
 from pathlib import Path
+
+import yaml
 from mutagen import File
 
 # Configure logging
@@ -33,11 +36,12 @@ def get_mp3_duration(mp3_file_path):
         if audio_file is not None and hasattr(audio_file, "info"):
             duration = audio_file.info.length
             return duration
-        else:
-            logger.warning(f"⚠ Could not read MP3 file: {mp3_file_path}")
-            return None
+
+        logger.warning("⚠ Could not read MP3 file: %s", mp3_file_path)
+        return None
+
     except Exception as e:
-        logger.warning(f"⚠ Error getting MP3 duration: {e}")
+        logger.warning("⚠ Error getting MP3 duration: %s", e)
         return None
 
 
@@ -86,9 +90,10 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
     Returns:
         bool: True if successful, False otherwise
     """
+    # pylint: disable=too-many-locals,too-many-branches
     try:
         # Load the YAML file
-        with open(yaml_file_path, "r") as file:
+        with open(yaml_file_path, "r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
 
         if "songs" not in data:
@@ -106,7 +111,7 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
         # Process each song
         for i, song in enumerate(songs):
             if not isinstance(song, dict) or "id" not in song:
-                logger.warning(f"Song {i+1} missing 'id' field, skipping")
+                logger.warning("Song %s missing 'id' field, skipping", i + 1)
                 continue
 
             song_id = song["id"]
@@ -126,47 +131,53 @@ def analyze_and_update_durations(yaml_file_path, songs_dir):
 
                     if old_duration != formatted_duration:
                         logger.info(
-                            f"✓ Updated {song.get('title', song_id)}: {old_duration} → {formatted_duration}"
+                            "✓ Updated %s: %s → %s",
+                            song.get("title", song_id),
+                            old_duration,
+                            formatted_duration,
                         )
                         updated_count += 1
                     else:
                         logger.info(
-                            f"✓ {song.get('title', song_id)}: {formatted_duration} (unchanged)"
+                            "✓ %s: %s (unchanged)",
+                            song.get("title", song_id),
+                            formatted_duration,
                         )
                 else:
                     logger.warning(
-                        f"⚠ Could not get duration for {song.get('title', song_id)}"
+                        "⚠ Could not get duration for %s",
+                        song.get("title", song_id),
                     )
             else:
-                logger.warning(f"⚠ MP3 file not found: {mp3_filename}")
+                logger.warning("⚠ MP3 file not found: %s", mp3_filename)
                 missing_files += 1
 
         # Save the updated YAML file
-        with open(yaml_file_path, "w") as file:
+        with open(yaml_file_path, "w", encoding="utf-8") as file:
             yaml.dump(data, file, default_flow_style=False, sort_keys=False)
 
-        logger.info(f"✅ Analysis complete!")
-        logger.info(f"   Updated durations: {updated_count}")
-        logger.info(f"   Missing MP3 files: {missing_files}")
-        logger.info(f"   Total songs: {len(songs)}")
+        logger.info("✅ Analysis complete!")
+        logger.info("   Updated durations: %s", updated_count)
+        logger.info("   Missing MP3 files: %s", missing_files)
+        logger.info("   Total songs: %s", len(songs))
 
         return True
 
     except FileNotFoundError:
-        logger.error(f"YAML file not found: {yaml_file_path}")
+        logger.error("YAML file not found: %s", yaml_file_path)
         return False
     except yaml.YAMLError as e:
-        logger.error(f"Error parsing YAML file: {e}")
+        logger.error("Error parsing YAML file: %s", e)
         return False
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error("Unexpected error: %s", e)
         return False
 
 
 def main():
     """Main function to analyze MP3 durations and update YAML."""
     parser = argparse.ArgumentParser(
-        description="Analyze MP3 files and update lit_up_config.yaml with actual durations"
+        description="Analyze MP3 files and update lit_up_config.yaml with durations"
     )
     parser.add_argument(
         "--config",
@@ -190,33 +201,33 @@ def main():
         yaml_file_path = args.config.resolve()
         songs_dir = args.out_dir.resolve() / "songs"
 
-        logger.info(f"YAML file: {yaml_file_path}")
-        logger.info(f"Songs directory: {songs_dir}")
+        logger.info("YAML file: %s", yaml_file_path)
+        logger.info("Songs directory: %s", songs_dir)
 
         # Check if directories exist
         if not yaml_file_path.exists():
-            logger.error(f"YAML file not found: {yaml_file_path}")
+            logger.error("YAML file not found: %s", yaml_file_path)
             return False
 
         if not songs_dir.exists():
-            logger.error(f"Songs directory not found: {songs_dir}")
+            logger.error("Songs directory not found: %s", songs_dir)
             return False
 
         # Analyze and update durations
-        success = analyze_and_update_durations(yaml_file_path, songs_dir)
+        durations_analyzed = analyze_and_update_durations(yaml_file_path, songs_dir)
 
-        if success:
+        if durations_analyzed:
             logger.info("🎉 Duration analysis completed successfully!")
         else:
             logger.error("❌ Duration analysis failed!")
 
-        return success
+        return durations_analyzed
 
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
+        logger.error("An unexpected error occurred: %s", e)
         return False
 
 
 if __name__ == "__main__":
-    success = main()
-    exit(0 if success else 1)
+    DURATIONS_ANALYZED = main()
+    sys.exit(0 if DURATIONS_ANALYZED else 1)

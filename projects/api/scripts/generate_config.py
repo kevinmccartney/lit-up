@@ -7,11 +7,12 @@ the app.
 
 import argparse
 import datetime
-import importlib
 import json
+import secrets
 import sys
 from pathlib import Path
-import secrets
+
+import yaml
 
 
 def generate_app_config(config_path: Path, out_dir: Path):
@@ -23,11 +24,6 @@ def generate_app_config(config_path: Path, out_dir: Path):
 
     # Load YAML file
     print(f"📖 Loading configuration from {config_path}")
-    try:
-        yaml = importlib.import_module("yaml")
-    except ModuleNotFoundError:
-        print("❌ Error: PyYAML is not installed. Please install 'pyyaml'.")
-        return False
     with open(config_path, "r", encoding="utf-8") as f:
         yaml_error = getattr(yaml, "YAMLError", Exception)
         try:

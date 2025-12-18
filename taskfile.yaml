@@ -3,28 +3,43 @@ version: 3
 silent: true
 
 tasks:
+  format:prettier:
+    desc: 'Format supported files with Prettier (requires global prettier)'
+    dir: .
+    cmds:
+      - |
+        if ! command -v prettier >/dev/null 2>&1; then
+          echo "✗ prettier is not available (expected global install)"
+          echo "  install with: npm i -g prettier"
+          exit 1
+        fi
+        prettier --write --ignore-unknown .
+  ui:lint:
+    desc: 'Run ESLint for the UI project (no auto-fix)'
+    dir: projects/ui
+    cmd: npm run -s lint
   ui:dev:
-    desc: "Run the UI development stack"
-    summary: "Runs the react dev server. Also processes songs (will not re-process any songs that have already been processed), generates the config, and concatenates the audio playlist."
+    desc: 'Run the UI development stack'
+    summary: 'Runs the react dev server. Also processes songs (will not re-process any songs that have already been processed), generates the config, and concatenates the audio playlist.'
     dir: projects/ui
     cmds:
       - task: api:process_songs
-      - task: config:generate
+      - task: api:generate_config
       - task: api:concatenate_playlist
       - npm run dev
   ui:build:
-    desc: "Build the UI for production"
-    summary: "Builds the UI (& only the UI) for production using Vite."
+    desc: 'Build the UI for production'
+    summary: 'Builds the UI (& only the UI) for production using Vite.'
     dir: projects/ui
     cmd: npm run build
   ui:preview:
-    desc: "Preview the UI for production"
-    summary: "Previews a production build of the UI (IE no source maps, no dev server - just the built files)."
+    desc: 'Preview the UI for production'
+    summary: 'Previews a production build of the UI (IE no source maps, no dev server - just the built files).'
     dir: projects/ui
     cmd: npm run preview
   ui:deploy:
-    desc: "Deploy the UI to S3"
-    summary: "Deploys the UI to S3. Also processes songs (will not re-process any songs that have already been processed), generates the config, concatenates the audio playlist, and generates the favicon."
+    desc: 'Deploy the UI to S3'
+    summary: 'Deploys the UI to S3. Also processes songs (will not re-process any songs that have already been processed), generates the config, concatenates the audio playlist, and generates the favicon.'
     dir: projects/ui
     cmds:
       - |
@@ -88,14 +103,14 @@ tasks:
           exit 1
         fi
   env:init:
-    desc: "Initialize the environment variables"
-    summary: "Initializes the environment variables from the .env file."
+    desc: 'Initialize the environment variables'
+    summary: 'Initializes the environment variables from the .env file.'
     dir: .
     cmd: |
       set -a; source .env; set +a
   infra:init:
-    desc: "Initialize the Terraform infrastructure"
-    summary: "Initializes the Terraform infrastructure. Also initializes the environment variables."
+    desc: 'Initialize the Terraform infrastructure'
+    summary: 'Initializes the Terraform infrastructure. Also initializes the environment variables.'
     dir: projects/infra
     cmds:
       - task: env:init
@@ -107,36 +122,36 @@ tasks:
           -backend-config="dynamodb_table=$TF_STATE_DYNAMODB_TABLE" \
           -backend-config="encrypt=true"
   infra:plan:
-    desc: "Plan the Terraform infrastructure"
+    desc: 'Plan the Terraform infrastructure'
     dir: projects/infra
     cmd: terraform plan
   infra:apply:
-    desc: "Apply the Terraform infrastructure"
+    desc: 'Apply the Terraform infrastructure'
     dir: projects/infra
     cmd: terraform apply
   infra:fmt:
-    desc: "Check Terraform formatting (terraform fmt -check)"
+    desc: 'Check Terraform formatting (terraform fmt -check)'
     dir: projects/infra
     cmd: terraform fmt -check -diff -recursive
   infra:tflint:
-    desc: "Run tflint on Terraform files"
+    desc: 'Run tflint on Terraform files'
     dir: projects/infra
     cmd: tflint --recursive
   infra:lint:
-    desc: "Run Terraform formatting + lint checks"
+    desc: 'Run Terraform formatting + lint checks'
     cmds:
       - task: infra:fmt
       - task: infra:tflint
   infra:destroy:
-    desc: "Destroy the Terraform infrastructure"
+    desc: 'Destroy the Terraform infrastructure'
     dir: projects/infra
     cmd: terraform destroy
   infra:ssl_status:
-    desc: "Check SSL certificate validation status"
+    desc: 'Check SSL certificate validation status'
     dir: projects/infra
     cmd: terraform output certificate_validation_status
   infra:ssl_info:
-    desc: "Display SSL certificate information"
+    desc: 'Display SSL certificate information'
     dir: projects/infra
     cmd: |
       echo "SSL Certificate Information:"
@@ -147,8 +162,44 @@ tasks:
       echo "Website URLs:"
       echo "Custom Domain: $(terraform output -raw website_url)"
       echo "CloudFront URL: $(terraform output -raw cloudfront_url)"
+  api:lint:
+    desc: 'Lint the API scripts'
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
+        source venv/bin/activate
+        pip install -r requirements.txt
+        pylint --rcfile=../.pylintrc --ignore=venv,.venv .
+        flake8 --exclude=venv,.venv .
+  api:isort:
+    desc: 'Sort imports (isort) for the API scripts'
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
+        source venv/bin/activate
+        pip install -r requirements.txt
+        isort --profile black .
+  api:format:
+    desc: 'Format the API scripts'
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
+        source venv/bin/activate
+        pip install -r requirements.txt
+        black .
+  api:types:
+    desc: 'Run mypy on the API scripts'
+    dir: projects/api/scripts
+    cmds:
+      - task: api:ensure_venv
+      - |
+        source venv/bin/activate
+        pip install -r requirements.txt
   api:ensure_venv:
-    desc: "Ensure the Python virtual environment is setup"
+    desc: 'Ensure the Python virtual environment is setup'
     dir: projects/api/scripts
     cmds:
       - |
@@ -158,8 +209,8 @@ tasks:
           echo "✅ Virtual environment created"
         fi
   api:process_songs:
-    desc: "Process the songs"
-    summary: "Processes the songs using the process_songs.py script. Also analyzes the songs and updates the lit_up_config.yaml with the actual durations."
+    desc: 'Process the songs'
+    summary: 'Processes the songs using the process_songs.py script. Also analyzes the songs and updates the lit_up_config.yaml with the actual durations.'
     dir: projects/api/scripts
     cmds:
       - task: api:ensure_venv
@@ -171,8 +222,8 @@ tasks:
         python process_songs.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
       - task: api:analyze_song_durations
   api:analyze_song_durations:
-    desc: "Analyze song durations"
-    summary: "Analyzes the songs and updates the lit_up_config.yaml with the actual durations."
+    desc: 'Analyze song durations'
+    summary: 'Analyzes the songs and updates the lit_up_config.yaml with the actual durations.'
     dir: projects/api/scripts
     cmds:
       - task: api:ensure_venv
@@ -182,7 +233,7 @@ tasks:
         pip install -r requirements.txt -q
         python analyze_song_durations.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
   api:generate_config:
-    desc: "Convert lit_up_config.yaml to appConfig.json for the app"
+    desc: 'Convert lit_up_config.yaml to appConfig.json for the app'
     dir: projects/api/scripts
     cmds:
       - |
@@ -191,7 +242,7 @@ tasks:
         pip install -r requirements.txt -q
         python generate_config.py --config ../../../lit_up_config.yaml --out-dir ../../ui/.out
   api:concatenate_playlist:
-    desc: "Create concatenated audio playlist for iOS lock screen compatibility"
+    desc: 'Create concatenated audio playlist for iOS lock screen compatibility'
     dir: projects/api/scripts
     cmds:
       - task: api:ensure_venv
@@ -201,7 +252,7 @@ tasks:
         pip install -r requirements.txt -q
         python concatenate_playlist.py --out-dir ../../ui/.out
   api:generate_favicon:
-    desc: "Generate favicon SVG and PNG from emoji in lit_up_config.yaml"
+    desc: 'Generate favicon SVG and PNG from emoji in lit_up_config.yaml'
     dir: projects/api/scripts
     cmds:
       - task: api:ensure_venv

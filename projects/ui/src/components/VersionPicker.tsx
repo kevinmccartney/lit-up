@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 
 interface VersionPickerProps {
   className?: string;
 }
 
-const VersionPicker: React.FC<VersionPickerProps> = ({ className = "" }) => {
-  const availableVersions = ["v1", "v2"];
+const VersionPicker: React.FC<VersionPickerProps> = ({ className = '' }) => {
+  const availableVersions = ['v1', 'v2'];
 
   // Extract version from current URL path
   const getCurrentVersion = (): string => {
@@ -16,13 +16,13 @@ const VersionPicker: React.FC<VersionPickerProps> = ({ className = "" }) => {
       return match[1];
     }
     // Fallback: try to get from BASE_URL
-    const baseUrl = import.meta.env.BASE_URL || "/";
+    const baseUrl = import.meta.env.BASE_URL || '/';
     const baseMatch = baseUrl.match(/\/(v\d+)\//);
     if (baseMatch && baseMatch[1]) {
       return baseMatch[1];
     }
     // Default fallback
-    return "v1";
+    return 'v1';
   };
 
   const [version, setVersion] = useState<string>(getCurrentVersion());
@@ -34,10 +34,10 @@ const VersionPicker: React.FC<VersionPickerProps> = ({ className = "" }) => {
     };
 
     // Listen for popstate (back/forward navigation)
-    window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener('popstate', handleLocationChange);
 
     return () => {
-      window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener('popstate', handleLocationChange);
     };
   }, []);
 

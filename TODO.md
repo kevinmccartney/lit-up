@@ -24,10 +24,13 @@
 
 - [x] refactor: monorepo restructure
 - [x] chore: git hooks
-- [ ] chore: linting/static analysis quality tools
-  - [ ] pylint/flake8
-  - [ ] black
-  - [ ] eslint
+- [x] chore: linting/static analysis quality tools
+  - [x] eslint
+  - [x] prettier
+  - [x] isort
+  - [x] mypy
+  - [x] black
+  - [x] pylint/flake8
   - [x] tflint
   - [x] tf format
 - [ ] refactor: clean up repo in general (with the help of cursor 🤖)

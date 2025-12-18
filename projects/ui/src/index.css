@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-palette-magenta: #f26d85;
@@ -24,8 +24,9 @@
 html,
 body {
   color: var(--color-palette-charcoal);
-  font-family: "Courier Prime", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    'Courier Prime', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
   /* Default to standard viewport height */
   height: 100vh;
   margin: 0; /* Remove default body margin to allow full-bleed layout */

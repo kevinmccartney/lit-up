@@ -1,11 +1,11 @@
-import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
+import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ThemePickerProps {
   className?: string;
 }
 
-const ThemePicker: React.FC<ThemePickerProps> = ({ className = "" }) => {
+const ThemePicker: React.FC<ThemePickerProps> = ({ className = '' }) => {
   const { theme, updateTheme, isLoaded, themes } = useTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

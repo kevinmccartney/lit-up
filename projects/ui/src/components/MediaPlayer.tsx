@@ -1,13 +1,17 @@
-import { Hourglass, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { Hourglass, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import React, {
   useState,
   useRef,
   useEffect,
   forwardRef,
   useImperativeHandle,
-} from "react";
-import cn from "classnames";
-import { useTheme } from "../contexts/ThemeContext";
+} from 'react';
+import cn from 'classnames';
+import { useTheme } from '../contexts/ThemeContext';
+
+type AudioElement = HTMLAudioElement & {
+  context?: AudioContext;
+};
 
 interface MediaPlayerProps {
   src: string;
@@ -40,7 +44,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
   (
     {
       src,
-      title = "Audio Player",
+      title = 'Audio Player',
       cover,
       autoPlay = false,
       onPrevious,
@@ -48,7 +52,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       onEnded,
       hasPrevious = false,
       hasNext = false,
-      className = "",
+      className = '',
       isPlaying: externalIsPlaying,
       onPlayPause,
       // Concatenated playlist support
@@ -57,10 +61,9 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       trackEndTime,
       onTrackEnd,
     },
-    ref
+    ref,
   ) => {
-    const [internalIsPlaying, setInternalIsPlaying] =
-      useState(externalIsPlaying);
+    const [internalIsPlaying, setInternalIsPlaying] = useState(externalIsPlaying);
 
     // Use external isPlaying state if provided, otherwise use internal state
     const isPlaying =
@@ -114,13 +117,12 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         // Auto-play if requested
         if (autoPlay) {
           // For PWA, attempt to resume AudioContext if available (non-standard)
-          // @ts-ignore: context is not standard on HTMLAudioElement
+
           if (
-            (audio as any).context &&
-            (audio as any).context.state === "suspended"
+            (audio as AudioElement).context &&
+            (audio as AudioElement).context?.state === 'suspended'
           ) {
-            // @ts-ignore
-            (audio as any).context.resume();
+            (audio as AudioElement).context?.resume();
           }
           audio.play();
           if (externalIsPlaying === undefined) {
@@ -171,10 +173,10 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         }
       };
 
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.addEventListener("timeupdate", handleTimeUpdate);
-      audio.addEventListener("ended", handleEnded);
-      audio.addEventListener("progress", handleProgress);
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('progress', handleProgress);
 
       // Set up reliable track end detection for locked/backgrounded devices
       // This uses polling which works even when timeupdate is throttled
@@ -194,10 +196,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         };
 
         // Poll every 100ms for reliable detection even when backgrounded
-        trackEndCheckIntervalRef.current = window.setInterval(
-          checkTrackEnd,
-          100
-        );
+        trackEndCheckIntervalRef.current = window.setInterval(checkTrackEnd, 100);
       }
 
       // Also check when page becomes visible again (user unlocks phone)
@@ -210,20 +209,28 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         }
       };
 
-      document.addEventListener("visibilitychange", handleVisibilityChange);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
-        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        audio.removeEventListener("ended", handleEnded);
-        audio.removeEventListener("progress", handleProgress);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('progress', handleProgress);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         if (trackEndCheckIntervalRef.current !== null) {
           clearInterval(trackEndCheckIntervalRef.current);
           trackEndCheckIntervalRef.current = null;
         }
       };
-    }, [autoPlay, playlistMode, trackEndTime, onTrackEnd, trackStartTime]);
+    }, [
+      autoPlay,
+      playlistMode,
+      trackEndTime,
+      onTrackEnd,
+      trackStartTime,
+      externalIsPlaying,
+      onEnded,
+    ]);
 
     // Reset player state when src changes
     useEffect(() => {
@@ -240,7 +247,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       setCurrentTime(0);
       setDuration(0);
       setIsLoading(true);
-    }, [src]);
+    }, [src, externalIsPlaying]);
 
     // Set initial position for playlist mode
     useEffect(() => {
@@ -287,19 +294,17 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
     };
 
     const formatTime = (time: number): string => {
-      if (isNaN(time)) return "0:00";
+      if (isNaN(time)) return '0:00';
 
       const minutes = Math.floor(time / 60);
       const seconds = Math.floor(time % 60);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
 
     const progressPercentage =
       effectiveDuration > 0 ? (currentTime / effectiveDuration) * 100 : 0;
 
-    const handleProgressBarClick = (
-      event: React.MouseEvent<HTMLDivElement>
-    ) => {
+    const handleProgressBarClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       const audio = audioRef.current;
       if (!audio || !effectiveDuration) return;
 
@@ -325,20 +330,20 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
       <div
         className={cn(
           `border-2 border-[var(--theme-secondary)] rounded-2xl p-4 md:p-8 flex flex-col sm:flex-row lg:flex-col gap-4 md:gap-6 bg-[var(--theme-tertiary)] min-h-0`,
-          className
+          className,
         )}
       >
         <audio
           ref={audioRef}
           src={src}
           preload="metadata"
-          playsInline
-          webkit-playsinline="true"
           crossOrigin="anonymous"
           controls={false}
           loop={false}
           muted={false}
-        />
+        >
+          <track kind="captions" />
+        </audio>
 
         {cover && (
           <div className="flex justify-center">
@@ -348,7 +353,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
               className="w-32 h-32 lg:w-72 lg:h-72 rounded-xl object-cover"
               onError={(e) => {
                 // Hide image if it fails to load
-                (e.target as HTMLImageElement).style.display = "none";
+                (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           </div>
@@ -399,7 +404,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
           </div>
 
           <div className="mt-2 md:mt-5 w-full">
-            <div
+            <button
               className={`bg-[var(--theme-primary)] h-2 rounded-sm overflow-hidden mb-2 backdrop-blur-sm cursor-pointer transition-all duration-300 relative hover:h-2.5 hover:-translate-y-0.5 active:translate-y-0`}
               onClick={handleProgressBarClick}
               title="Click to seek"
@@ -408,7 +413,7 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
                 className={`bg-[var(--theme-secondary)] h-full transition-all duration-100 rounded-sm relative hover:bg-[var(--theme-secondary)] hover:shadow-lg hover:shadow-black/50`}
                 style={{ width: `${progressPercentage}%` }}
               />
-            </div>
+            </button>
             <div className="flex justify-between text-sm font-medium opacity-90">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(effectiveDuration)}</span>
@@ -417,9 +422,9 @@ const MediaPlayer = forwardRef<MediaPlayerRef, MediaPlayerProps>(
         </div>
       </div>
     );
-  }
+  },
 );
 
-MediaPlayer.displayName = "MediaPlayer";
+MediaPlayer.displayName = 'MediaPlayer';
 
 export default MediaPlayer;

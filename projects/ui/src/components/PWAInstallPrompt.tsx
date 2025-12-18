@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from "react";
-import { Download, X } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Download, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: "accepted" | "dismissed";
+    outcome: 'accepted' | 'dismissed';
     platform: string;
   }>;
   prompt(): Promise<void>;
 }
 
 const PWAInstallPrompt: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    null,
+  );
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
@@ -25,20 +26,17 @@ const PWAInstallPrompt: React.FC = () => {
     };
 
     const handleAppInstalled = () => {
-      console.log("PWA was installed");
+      console.log('PWA was installed');
       setShowInstallPrompt(false);
       setDeferredPrompt(null);
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      );
-      window.removeEventListener("appinstalled", handleAppInstalled);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -51,10 +49,10 @@ const PWAInstallPrompt: React.FC = () => {
     // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
 
-    if (outcome === "accepted") {
-      console.log("User accepted the install prompt");
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
     } else {
-      console.log("User dismissed the install prompt");
+      console.log('User dismissed the install prompt');
     }
 
     // Clear the deferredPrompt
@@ -65,11 +63,11 @@ const PWAInstallPrompt: React.FC = () => {
   const handleDismiss = () => {
     setShowInstallPrompt(false);
     // Don't show again for this session
-    sessionStorage.setItem("pwa-install-dismissed", "true");
+    sessionStorage.setItem('pwa-install-dismissed', 'true');
   };
 
   // Don't show if user dismissed it in this session
-  if (sessionStorage.getItem("pwa-install-dismissed")) {
+  if (sessionStorage.getItem('pwa-install-dismissed')) {
     return null;
   }
 

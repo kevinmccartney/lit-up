@@ -4,14 +4,26 @@
 pre-commit:
   commands:
     infra_terraform:
-      glob: "projects/infra/**/*.tf"
+      glob: 'projects/infra/**/*.tf'
       run: scripts/git-hooks/infra_terraform_checks.sh
-    lint_web:
-      glob: "projects/ui/**/*.{js,jsx,ts,tsx}"
-      run: cd projects/ui && npm run lint
+    format_prettier:
+      glob: '**/*.{js,jsx,ts,tsx,json,yml,yaml,md,mdx,css,scss,html}'
+      run: scripts/git-hooks/prettier_format.sh {staged_files}
+    eslint_ui:
+      glob: 'projects/ui/**/*.{js,jsx,ts,tsx}'
+      run: scripts/git-hooks/eslint_ui_check.sh
     lint_api:
-      glob: "projects/api/**/*.{py}"
+      glob: 'projects/api/**/*.{py}'
       run: cd projects/api && ruff check .
+    python_lint:
+      glob: 'projects/api/**/*.py'
+      run: scripts/git-hooks/python_lint.sh {staged_files}
+    isort_api:
+      glob: 'projects/api/**/*.py'
+      run: scripts/git-hooks/isort_format.sh {staged_files}
+    format_api:
+      glob: 'projects/api/**/*.py'
+      run: scripts/git-hooks/black_format.sh {staged_files}
 prepare-commit-msg:
   commands:
     conventional_wizard:

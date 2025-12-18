@@ -1,0 +1,20 @@
+[MASTER]
+jobs=0
+
+[MESSAGES CONTROL]
+# Keep this light initially; we can tighten over time.
+disable=
+  missing-module-docstring,
+  missing-function-docstring,
+  missing-class-docstring,
+  too-few-public-methods,
+  line-too-long,
+  duplicate-code,
+
+[FORMAT]
+max-line-length=88
+
+[REPORTS]
+score=no
+
+

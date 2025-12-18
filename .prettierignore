@@ -1,0 +1,25 @@
+# Build / deps
+**/node_modules/**
+**/dist/**
+**/.out/**
+
+# Python tooling / artifacts
+**/*.py
+**/.venv/**
+**/venv/**
+**/__pycache__/**
+**/*.pyc
+**/.mypy_cache/**
+
+# Terraform
+**/*.tf
+**/*.tfvars
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform/**
+
+# Misc
+**/*.zip
+projects/infra/lambda-auth.zip
+
+

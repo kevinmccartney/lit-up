@@ -1,20 +1,49 @@
 {
   "folders": [
-	{
-		"path": "."
-	},
-	{
-		"path": "projects/api"
-	},
-	{
-		"path": "projects/admin"
-	},
-	{
-		"path": "projects/ui"
-	},
-	{
-		"path": "projects/infra"
-	}
-],
-  "settings": {}
+    {
+      "path": "."
+    },
+    {
+      "path": "projects/api"
+    },
+    {
+      "path": "projects/admin"
+    },
+    {
+      "path": "projects/ui"
+    },
+    {
+      "path": "projects/infra"
+    }
+  ],
+  "settings": {
+    "cSpell.words": [
+      "backgrounded",
+      "cairosvg",
+      "ffprobe",
+      "isort",
+      "Lefthook",
+      "libmp",
+      "mypy",
+      "nexttrack",
+      "Noto",
+      "prefs",
+      "previoustrack",
+      "pycache",
+      "pylint",
+      "pylintrc",
+      "rcfile",
+      "safebrowsing",
+      "sbps",
+      "seekbackward",
+      "seekforward",
+      "Segoe",
+      "tflint",
+      "tfstate",
+      "tfvars",
+      "venv",
+      "Vite",
+      "webelement"
+    ]
+  }
 }

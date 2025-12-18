@@ -18,6 +18,9 @@ import argparse
 import sys
 from pathlib import Path
 
+import cairosvg
+import yaml
+
 
 def emoji_to_svg_text(emoji: str, size: int = 32) -> str:
     """
@@ -25,7 +28,7 @@ def emoji_to_svg_text(emoji: str, size: int = 32) -> str:
     Simple and works well in modern browsers.
     """
     font_size = int(size * 0.75)
-    font_family = "Apple Color Emoji, Segoe UI Emoji, " "Noto Color Emoji, sans-serif"
+    font_family = "Apple Color Emoji, Segoe UI Emoji, " + "Noto Color Emoji, sans-serif"
     center = size // 2
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}"
@@ -44,16 +47,6 @@ def emoji_to_png(emoji: str, size: int = 32) -> bytes:
     Convert emoji to PNG by first generating SVG, then converting to PNG.
     Returns PNG image bytes.
     """
-    try:
-        import cairosvg
-    except ImportError:
-        msg = (
-            "Error: cairosvg is required for PNG format. "
-            "Install with: pip install cairosvg"
-        )
-        print(msg, file=sys.stderr)
-        sys.exit(1)
-
     # Generate SVG first
     svg_content = emoji_to_svg_text(emoji, size)
 
@@ -68,14 +61,7 @@ def emoji_to_png(emoji: str, size: int = 32) -> bytes:
 
 
 def load_config(config_path: Path) -> dict:
-    """Load YAML config file."""
-    try:
-        import yaml
-    except ImportError:
-        msg = "Error: PyYAML is required. " "Install with: pip install PyYAML"
-        print(msg, file=sys.stderr)
-        sys.exit(1)
-
+    """Load the config file."""
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
@@ -85,6 +71,7 @@ def load_config(config_path: Path) -> dict:
 
 
 def main():
+    """Runs the Emoji to Favicon script."""
     parser = argparse.ArgumentParser(
         description="Convert an emoji to a favicon SVG or PNG"
     )

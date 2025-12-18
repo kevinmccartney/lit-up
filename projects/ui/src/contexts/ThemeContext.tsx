@@ -4,10 +4,10 @@ import React, {
   useState,
   useEffect,
   ReactNode,
-} from "react";
-import { themes as themesConstants } from "../constants";
+} from 'react';
+import { themes as themesConstants } from '../constants';
 
-export type ThemeKey = "coral" | "magenta" | "pink" | "teal" | "cyan";
+export type ThemeKey = 'coral' | 'magenta' | 'pink' | 'teal' | 'cyan';
 export type Theme = {
   primary: string;
   secondary: string;
@@ -20,31 +20,31 @@ const themes: Record<ThemeKey, Theme> = {
     primary: themesConstants.coral.primary,
     secondary: themesConstants.coral.secondary,
     tertiary: themesConstants.coral.tertiary,
-    name: "coral",
+    name: 'coral',
   },
   magenta: {
     primary: themesConstants.magenta.primary,
     secondary: themesConstants.magenta.secondary,
     tertiary: themesConstants.magenta.tertiary,
-    name: "magenta",
+    name: 'magenta',
   },
   pink: {
     primary: themesConstants.pink.primary,
     secondary: themesConstants.pink.secondary,
     tertiary: themesConstants.pink.tertiary,
-    name: "pink",
+    name: 'pink',
   },
   teal: {
     primary: themesConstants.teal.primary,
     secondary: themesConstants.teal.secondary,
     tertiary: themesConstants.teal.tertiary,
-    name: "teal",
+    name: 'teal',
   },
   cyan: {
     primary: themesConstants.cyan.primary,
     secondary: themesConstants.cyan.secondary,
     tertiary: themesConstants.cyan.tertiary,
-    name: "cyan",
+    name: 'cyan',
   },
 };
 
@@ -66,27 +66,20 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(themes.coral);
-  const [primaryColor, setPrimaryColor] = useState<string>(
-    themes.coral.primary
-  );
-  const [secondaryColor, setSecondaryColor] = useState<string>(
-    themes.coral.secondary
-  );
-  const [tertiaryColor, setTertiaryColor] = useState<string>(
-    themes.coral.tertiary
-  );
+  const [primaryColor, setPrimaryColor] = useState<string>(themes.coral.primary);
+  const [secondaryColor, setSecondaryColor] = useState<string>(themes.coral.secondary);
+  const [tertiaryColor, setTertiaryColor] = useState<string>(themes.coral.tertiary);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load theme from localStorage on mount
   useEffect(() => {
-    const storedTheme = localStorage.getItem("app-theme");
-    const savedTheme: Theme =
-      (storedTheme && JSON.parse(storedTheme)) || themes.coral;
+    const storedTheme = localStorage.getItem('app-theme');
+    const savedTheme: Theme = (storedTheme && JSON.parse(storedTheme)) || themes.coral;
     setTheme(savedTheme);
     setPrimaryColor(savedTheme.primary);
     setSecondaryColor(savedTheme.secondary);
     setTertiaryColor(savedTheme.tertiary);
-    document.documentElement.setAttribute("data-theme", savedTheme.name);
+    document.documentElement.setAttribute('data-theme', savedTheme.name);
     setIsLoaded(true);
   }, []);
 
@@ -97,8 +90,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setPrimaryColor(newTheme.primary);
     setSecondaryColor(newTheme.secondary);
     setTertiaryColor(newTheme.tertiary);
-    localStorage.setItem("app-theme", JSON.stringify(newTheme));
-    document.documentElement.setAttribute("data-theme", newTheme.name);
+    localStorage.setItem('app-theme', JSON.stringify(newTheme));
+    document.documentElement.setAttribute('data-theme', newTheme.name);
   };
 
   const value: ThemeContextType = {
@@ -111,15 +104,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     themes,
   };
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
 };

@@ -1,26 +1,26 @@
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
 
 // Register service worker for PWA functionality
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register(`${import.meta.env.BASE_URL || "/"}sw.js`)
+      .register(`${import.meta.env.BASE_URL || '/'}sw.js`)
       .then((registration) => {
-        console.log("SW registered: ", registration);
+        console.log('SW registered: ', registration);
 
         // Check for updates
-        registration.addEventListener("updatefound", () => {
+        registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
+            newWorker.addEventListener('statechange', () => {
               if (
-                newWorker.state === "installed" &&
+                newWorker.state === 'installed' &&
                 navigator.serviceWorker.controller
               ) {
                 // New content is available, prompt user to refresh
-                if (confirm("New version available! Refresh to update?")) {
+                if (confirm('New version available! Refresh to update?')) {
                   window.location.reload();
                 }
               }
@@ -29,12 +29,12 @@ if ("serviceWorker" in navigator) {
         });
       })
       .catch((registrationError) => {
-        console.log("SW registration failed: ", registrationError);
+        console.log('SW registration failed: ', registrationError);
       });
   });
 }
 
-const container = document.getElementById("root");
+const container = document.getElementById('root');
 if (!container) {
   throw new Error('Root element with id "root" not found');
 }

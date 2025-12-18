@@ -1,20 +1,27 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import MediaPlayer, { MediaPlayerRef } from "./components/MediaPlayer";
-import MediaLibrary, { Track } from "./components/MediaLibrary";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  type CSSProperties,
+} from 'react';
+import MediaPlayer, { MediaPlayerRef } from './components/MediaPlayer';
+import MediaLibrary, { Track } from './components/MediaLibrary';
 import {
   AppConfig,
   ConcatenatedPlaylist,
   getAppConfigUrl,
-  useTracks,
+  loadTracks,
   withAppBase,
-} from "./hooks/useTracks";
-import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
-import { Heart, Settings } from "lucide-react";
-import ThemePicker from "./components/ThemePicker";
-import DevBuildInfo from "./components/DevBuildInfo";
-import PWAInstallPrompt from "./components/PWAInstallPrompt";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import VersionPicker from "./components/VersionPicker";
+} from './hooks/useTracks';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { Heart, Settings } from 'lucide-react';
+import ThemePicker from './components/ThemePicker';
+import DevBuildInfo from './components/DevBuildInfo';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import VersionPicker from './components/VersionPicker';
 
 function AppContent(): JSX.Element {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -22,7 +29,7 @@ function AppContent(): JSX.Element {
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [headerMessage, setHeaderMessage] = useState<string>("");
+  const [headerMessage, setHeaderMessage] = useState<string>('');
   const [showMeadow, setShowMeadow] = useState<boolean>(false);
   const [secretTrackPlaying, setSecretTrackPlaying] = useState<boolean>(false);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
@@ -40,7 +47,7 @@ function AppContent(): JSX.Element {
   const { theme, primaryColor, secondaryColor, tertiaryColor } = useTheme();
   const secretTrack = useMemo(
     () => allTracks.find((track) => track.isSecret) ?? null,
-    [allTracks]
+    [allTracks],
   );
 
   useEffect(() => {
@@ -49,7 +56,7 @@ function AppContent(): JSX.Element {
 
   // Close dropdown when screen goes below md breakpoint (768px)
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
 
     const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
       // If screen goes below md, close the dropdown
@@ -63,8 +70,8 @@ function AppContent(): JSX.Element {
 
     // Listen for changes
     if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleMediaChange);
-      return () => mediaQuery.removeEventListener("change", handleMediaChange);
+      mediaQuery.addEventListener('change', handleMediaChange);
+      return () => mediaQuery.removeEventListener('change', handleMediaChange);
     } else {
       // Fallback for older browsers
       mediaQuery.addListener(handleMediaChange);
@@ -75,10 +82,10 @@ function AppContent(): JSX.Element {
   // Create dynamic CSS custom properties for theme colors
   const themeStyles = useMemo(() => {
     return {
-      "--theme-primary": primaryColor,
-      "--theme-secondary": secondaryColor,
-      "--theme-tertiary": tertiaryColor,
-    } as React.CSSProperties;
+      '--theme-primary': primaryColor,
+      '--theme-secondary': secondaryColor,
+      '--theme-tertiary': tertiaryColor,
+    } as CSSProperties;
   }, [primaryColor, secondaryColor, tertiaryColor]);
 
   // Load tracks from appConfig.json on component mount
@@ -86,16 +93,13 @@ function AppContent(): JSX.Element {
     const loadTracksData = async () => {
       try {
         // Load tracks
-        const loadedTracks = await useTracks();
+        const loadedTracks = await loadTracks();
         // Also fetch build info and concatenated playlist data
         try {
           const res = await fetch(getAppConfigUrl());
           if (res.ok) {
             const cfg: AppConfig = await res.json();
-            if (
-              typeof cfg.headerMessage === "string" &&
-              cfg.headerMessage.trim()
-            ) {
+            if (typeof cfg.headerMessage === 'string' && cfg.headerMessage.trim()) {
               setHeaderMessage(cfg.headerMessage.trim());
             }
             setBuildInfo({
@@ -121,7 +125,7 @@ function AppContent(): JSX.Element {
           setSelectedTrack(publicTracks[0]);
         }
       } catch (error) {
-        console.error("Failed to load tracks:", error);
+        console.error('Failed to load tracks:', error);
       } finally {
         setIsLoading(false);
       }
@@ -132,19 +136,19 @@ function AppContent(): JSX.Element {
 
   const isDevOverlayEnabled = useMemo(() => {
     const flag = import.meta.env.VITE_LIT_UP_APP_DEV;
-    return flag === "true" || flag === "1";
+    return flag === 'true' || flag === '1';
   }, []);
 
   // Get current version from Vite's BASE_URL
   const getCurrentVersion = useCallback((): string => {
-    const baseUrl = import.meta.env.BASE_URL || "/";
+    const baseUrl = import.meta.env.BASE_URL || '/';
     // BASE_URL will be like /v1/ or /v2/, extract the version
     const match = baseUrl.match(/\/(v\d+)\//);
     if (match && match[1]) {
       return match[1];
     }
     // Default fallback
-    return "v1";
+    return 'v1';
   }, []);
 
   // Update the browser tab title to reflect the currently playing song
@@ -157,9 +161,9 @@ function AppContent(): JSX.Element {
     const activeTrack = activeSecret ? secretTrack : selectedTrack;
 
     if (activeTrack) {
-      const artist = (activeTrack as any).artist
-        ? ` — ${(activeTrack as any).artist}`
-        : "";
+      const artist = (activeTrack as Track).artist
+        ? ` — ${(activeTrack as Track).artist}`
+        : '';
       document.title = `${baseTitle} | ${activeTrack.title}${artist}`;
     } else {
       document.title = baseTitle;
@@ -182,9 +186,9 @@ function AppContent(): JSX.Element {
     setTimeout(() => setAutoPlay(false), 100);
 
     // Ensure Media Session is updated immediately
-    if ("mediaSession" in navigator) {
+    if ('mediaSession' in navigator) {
       requestAnimationFrame(() => {
-        navigator.mediaSession.playbackState = "playing";
+        navigator.mediaSession.playbackState = 'playing';
       });
     }
   }, []);
@@ -202,7 +206,7 @@ function AppContent(): JSX.Element {
       }
       return concatenatedPlaylist.tracks.find((t) => t.id === trackId);
     },
-    [concatenatedPlaylist]
+    [concatenatedPlaylist],
   );
 
   const handlePrevious = useCallback(() => {
@@ -212,9 +216,8 @@ function AppContent(): JSX.Element {
     // Check if we're in the middle of a song (> 3 seconds played)
     if (mainPlayerRef.current) {
       const currentTime = mainPlayerRef.current.getCurrentTime();
-      const currentTrackTiming = getTrackTiming(selectedTrack?.id ?? "");
-      const currentTrackTime =
-        currentTime - (currentTrackTiming?.startTime ?? 0);
+      const currentTrackTiming = getTrackTiming(selectedTrack?.id ?? '');
+      const currentTrackTime = currentTime - (currentTrackTiming?.startTime ?? 0);
       if (currentTrackTime > 3) {
         // Restart current song
         if (concatenatedPlaylist && selectedTrack) {
@@ -239,8 +242,7 @@ function AppContent(): JSX.Element {
     }
 
     // Otherwise, go to previous track
-    const previousIndex =
-      currentIndex > 0 ? currentIndex - 1 : tracks.length - 1;
+    const previousIndex = currentIndex > 0 ? currentIndex - 1 : tracks.length - 1;
     const previousTrack = tracks[previousIndex];
     handleTrackSelect(previousTrack);
   }, [
@@ -322,18 +324,18 @@ function AppContent(): JSX.Element {
     const handleMediaKeyDown = (event: KeyboardEvent) => {
       // Check for media keys
       switch (event.code) {
-        case "MediaPlayPause":
-        case "F8": // Mac play/pause key
+        case 'MediaPlayPause':
+        case 'F8': // Mac play/pause key
           event.preventDefault();
           handlePlayPause();
           break;
-        case "MediaTrackNext":
-        case "F10": // Mac forward key
+        case 'MediaTrackNext':
+        case 'F10': // Mac forward key
           event.preventDefault();
           handleNext();
           break;
-        case "MediaTrackPrevious":
-        case "F9": // Mac back key
+        case 'MediaTrackPrevious':
+        case 'F9': // Mac back key
           event.preventDefault();
           handlePrevious();
           break;
@@ -358,53 +360,50 @@ function AppContent(): JSX.Element {
       }
     };
 
-    document.addEventListener("keydown", handleMediaKeyDown);
-    document.addEventListener("keydown", handleLegacyMediaKeys);
+    document.addEventListener('keydown', handleMediaKeyDown);
+    document.addEventListener('keydown', handleLegacyMediaKeys);
 
     return () => {
-      document.removeEventListener("keydown", handleMediaKeyDown);
-      document.removeEventListener("keydown", handleLegacyMediaKeys);
+      document.removeEventListener('keydown', handleMediaKeyDown);
+      document.removeEventListener('keydown', handleLegacyMediaKeys);
     };
   }, [handlePlayPause, handleNext, handlePrevious]);
 
   // Set up Media Session API for proper media key handling
   useEffect(() => {
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.setActionHandler("play", () => {
-        console.log("Media Session: Play action triggered");
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('Media Session: Play action triggered');
         handlePlayPause();
       });
 
-      navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("Media Session: Pause action triggered");
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('Media Session: Pause action triggered');
         handlePlayPause();
       });
 
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("Media Session: Previous track action triggered");
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        console.log('Media Session: Previous track action triggered');
         handlePrevious();
       });
 
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("Media Session: Next track action triggered");
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        console.log('Media Session: Next track action triggered');
         handleNext();
       });
 
       // Add seekbackward and seekforward for better PWA support
-      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-        console.log("Media Session: Seek backward action triggered");
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        console.log('Media Session: Seek backward action triggered');
         if (mainPlayerRef.current) {
           const currentTime = mainPlayerRef.current.getCurrentTime();
-          const seekTime = Math.max(
-            0,
-            currentTime - (details.seekOffset || 10)
-          );
+          const seekTime = Math.max(0, currentTime - (details.seekOffset || 10));
           mainPlayerRef.current.setCurrentTime(seekTime);
         }
       });
 
-      navigator.mediaSession.setActionHandler("seekforward", (details) => {
-        console.log("Media Session: Seek forward action triggered");
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        console.log('Media Session: Seek forward action triggered');
         if (mainPlayerRef.current) {
           const currentTime = mainPlayerRef.current.getCurrentTime();
           const seekTime = currentTime + (details.seekOffset || 10);
@@ -416,32 +415,32 @@ function AppContent(): JSX.Element {
 
   // Update Media Session metadata when track changes
   useEffect(() => {
-    if ("mediaSession" in navigator && selectedTrack) {
+    if ('mediaSession' in navigator && selectedTrack) {
       // Use requestAnimationFrame to ensure metadata update doesn't interfere with playback
       requestAnimationFrame(() => {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: selectedTrack.title,
-          artist: (selectedTrack as any).artist || "Unknown Artist",
-          album: "Lit Up",
+          artist: (selectedTrack as Track).artist || 'Unknown Artist',
+          album: 'Lit Up',
           artwork: [
             {
               src: selectedTrack.cover,
-              sizes: "512x512",
-              type: "image/jpeg",
+              sizes: '512x512',
+              type: 'image/jpeg',
             },
           ],
         });
 
         // Ensure the playback state is properly set
-        navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
       });
     }
   }, [selectedTrack, isPlaying]);
 
   // Update Media Session playback state when playing state changes
   useEffect(() => {
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
     }
   }, [isPlaying]);
 
@@ -506,10 +505,7 @@ function AppContent(): JSX.Element {
           {settingsMenu}
         </div>
         <div className="hidden md:flex">
-          <DropdownMenu.Root
-            open={isDropdownOpen}
-            onOpenChange={setIsDropdownOpen}
-          >
+          <DropdownMenu.Root open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
             <DropdownMenu.Trigger asChild>
               <button
                 className={`w-full md:w-auto p-4 md:p-2 bg-[var(--theme-tertiary)] border-b-2 border-[var(--theme-secondary)] hover:bg-[var(--theme-secondary)] transition-colors flex items-center justify-center md:justify-end`}
@@ -537,7 +533,7 @@ function AppContent(): JSX.Element {
         {/* Main interface - hidden when meadow is shown */}
         <div
           className={`flex-1 flex flex-col md:flex-row md:gap-4 min-h-0 ${
-            showMeadow ? "hidden" : ""
+            showMeadow ? 'hidden' : ''
           }`}
         >
           <MediaLibrary
@@ -552,11 +548,7 @@ function AppContent(): JSX.Element {
             <MediaPlayer
               ref={mainPlayerRef}
               key={selectedTrack.id} // Force re-render when track changes
-              src={
-                concatenatedPlaylist
-                  ? concatenatedPlaylist.file
-                  : selectedTrack.src
-              }
+              src={concatenatedPlaylist ? concatenatedPlaylist.file : selectedTrack.src}
               title={selectedTrack.title}
               cover={selectedTrack.cover}
               autoPlay={autoPlay}
@@ -588,22 +580,27 @@ function AppContent(): JSX.Element {
         {/* Meadow view - shown when meadow is active */}
         {showMeadow && secretTrack && (
           <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleMeadowClick();
+              }
+            }}
             className="flex-1 flex items-center justify-center cursor-pointer"
             onClick={handleMeadowClick}
           >
-            <img
-              src={secretTrack.cover}
-              alt="Meadow"
-              className="object-contain"
-            />
+            <img src={secretTrack.cover} alt="Meadow" className="object-contain" />
             {/* Hidden audio element for secret track */}
             <audio
               key={`secret-audio-${secretTrack.id}`}
               src={secretTrack.src}
               autoPlay={secretTrackPlaying}
               loop
-              style={{ display: "none" }}
-            />
+              style={{ display: 'none' }}
+            >
+              <track kind="captions" />
+            </audio>
           </div>
         )}
       </main>
@@ -611,25 +608,23 @@ function AppContent(): JSX.Element {
         className={`p-2 flex-shrink-0 text-sm text-center bg-[var(--theme-tertiary)] border-t-2 border-[var(--theme-secondary)] mt-8 md:mt-0`}
       >
         <p className="flex items-center justify-center gap-2">
-          Built with{" "}
-          <span
-            className={`transition-all duration-300 hover:scale-125 hover:text-red-500 text-[var(--theme-secondary)] cursor-pointer`}
+          Built with{' '}
+          <button
+            className={`border-0 rounded-full w-12 h-12 text-2xl cursor-pointer transition-all duration-300 backdrop-blur-sm flex items-center justify-center hover:bg-[var(--theme-tertiary)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed`}
             onClick={handleHeartClick}
           >
             <Heart fill="currentColor" stroke="currentColor" size={16} />
-          </span>
+          </button>
           by HK
         </p>
-        {isDevOverlayEnabled &&
-          buildInfo.buildDatetime &&
-          buildInfo.buildHash && (
-            <div className="mt-2 flex justify-center absolute bottom-0 right-0">
-              <DevBuildInfo
-                buildDatetime={buildInfo.buildDatetime}
-                buildHash={buildInfo.buildHash}
-              />
-            </div>
-          )}
+        {isDevOverlayEnabled && buildInfo.buildDatetime && buildInfo.buildHash && (
+          <div className="mt-2 flex justify-center absolute bottom-0 right-0">
+            <DevBuildInfo
+              buildDatetime={buildInfo.buildDatetime}
+              buildHash={buildInfo.buildHash}
+            />
+          </div>
+        )}
       </footer>
 
       {/* PWA Install Prompt */}

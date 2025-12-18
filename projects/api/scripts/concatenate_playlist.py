@@ -4,13 +4,16 @@ Script to concatenate individual MP3 files into a single playlist file.
 This creates a continuous audio stream that can be used with timestamp-based seeking
 to solve iOS lock screen auto-advance issues.
 """
+# pylint: disable=broad-exception-caught
 
 import argparse
+import importlib
 import json
 import logging
+import shutil
+import subprocess
 import sys
 from pathlib import Path
-import importlib
 
 # Configure logging
 logging.basicConfig(
@@ -34,11 +37,12 @@ def parse_duration(duration_str: str) -> float:
         if len(parts) == 2:
             minutes, seconds = map(int, parts)
             return minutes * 60 + seconds
-        else:
-            logger.warning(f"Invalid duration format: {duration_str}")
-            return 0.0
+
+        logger.warning("Invalid duration format: %s", duration_str)
+        return 0.0
+
     except (ValueError, AttributeError):
-        logger.warning(f"Could not parse duration: {duration_str}")
+        logger.warning("Could not parse duration: %s", duration_str)
         return 0.0
 
 
@@ -59,10 +63,10 @@ def get_audio_duration(file_path: Path) -> float:
         if audio_file is not None and hasattr(audio_file, "info"):
             return audio_file.info.length
     except (ImportError, Exception) as e:
-        logger.warning(f"Could not get duration with mutagen: {e}")
+        logger.warning("Could not get duration with mutagen: %s", e)
 
     # Fallback: return 0 if we can't determine duration
-    logger.warning(f"Could not determine duration for {file_path.name}")
+    logger.warning("Could not determine duration for %s", file_path.name)
     return 0.0
 
 
@@ -77,8 +81,6 @@ def analyze_audio_file(file_path: Path) -> dict:
         dict: Audio format information
     """
     try:
-        import subprocess
-
         # Use ffprobe to get detailed audio information
         cmd = [
             "ffprobe",
@@ -91,9 +93,8 @@ def analyze_audio_file(file_path: Path) -> dict:
             str(file_path),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         if result.returncode == 0:
-            import json
 
             data = json.loads(result.stdout)
 
@@ -113,7 +114,7 @@ def analyze_audio_file(file_path: Path) -> dict:
                     "duration": float(audio_stream.get("duration", 0)),
                 }
     except Exception as e:
-        logger.warning(f"Could not analyze audio file {file_path.name}: {e}")
+        logger.warning("Could not analyze audio file %s: %s", file_path.name, e)
 
     return {"error": "Could not analyze file"}
 
@@ -126,18 +127,18 @@ def create_concatenated_playlist_alternative(
     track_timestamps: list,
 ) -> bool:
     """
-    Alternative concatenation approach that processes files individually to ensure compatibility.
+    Alternative concatenation approach that processes files individually
+    to ensure compatibility.
     """
+    # pylint: disable=too-many-locals
     try:
-        import subprocess
-
         output_file = output_dir / "playlist.mp3"
 
         # Create a temporary directory for processed files
         temp_dir = output_dir / "temp_processed"
         temp_dir.mkdir(exist_ok=True)
 
-        processed_files = []
+        processed_files: list[str] = []
 
         logger.info("Processing files individually to ensure format consistency...")
 
@@ -163,21 +164,25 @@ def create_concatenated_playlist_alternative(
                 str(processed_file),
             ]
 
-            logger.info(f"Processing {track['title']}...")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            logger.info("Processing %s...", track["title"])
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
             if result.returncode == 0:
                 processed_files.append(str(processed_file))
-                logger.info(f"✅ Processed {track['title']}")
+                logger.info("✅ Processed %s", track["title"])
             else:
-                logger.error(f"❌ Failed to process {track['title']}: {result.stderr}")
+                logger.error(
+                    "❌ Failed to process %s: %s",
+                    track["title"],
+                    result.stderr,
+                )
                 return False
 
         # Now concatenate the processed files
         file_list_path = temp_dir / "processed_list.txt"
         with open(file_list_path, "w", encoding="utf-8") as f:
-            for processed_file in processed_files:
-                f.write(f"file '{processed_file}'\n")
+            for processed_file_str in processed_files:
+                f.write(f"file '{processed_file_str}'\n")
 
         # Concatenate the processed files
         concat_cmd = [
@@ -195,18 +200,16 @@ def create_concatenated_playlist_alternative(
         ]
 
         logger.info("Concatenating processed files...")
-        result = subprocess.run(concat_cmd, capture_output=True, text=True)
+        result = subprocess.run(concat_cmd, capture_output=True, text=True, check=True)
 
         # Clean up temporary files
-        import shutil
-
         shutil.rmtree(temp_dir, ignore_errors=True)
 
         if result.returncode != 0:
-            logger.error(f"Concatenation failed: {result.stderr}")
+            logger.error("Concatenation failed: %s", result.stderr)
             return False
 
-        logger.info(f"✅ Alternative concatenation successful: {output_file}")
+        logger.info("✅ Alternative concatenation successful: %s", output_file)
 
         # Update the app config
         with open(app_config_path, "r", encoding="utf-8") as f:
@@ -225,7 +228,7 @@ def create_concatenated_playlist_alternative(
         return True
 
     except Exception as e:
-        logger.error(f"Alternative concatenation failed: {e}")
+        logger.error("Alternative concatenation failed: %s", e)
         return False
 
 
@@ -243,6 +246,9 @@ def create_concatenated_playlist(
     Returns:
         bool: True if successful, False otherwise
     """
+
+    # pylint: disable=too-many-locals,too-many-statements
+
     try:
         # Load the app config
         with open(app_config_path, "r", encoding="utf-8") as f:
@@ -260,7 +266,10 @@ def create_concatenated_playlist(
             logger.error("No public tracks found for concatenation")
             return False
 
-        logger.info(f"Processing {len(public_tracks)} tracks for concatenation")
+        logger.info(
+            "Processing %s tracks for concatenation",
+            len(public_tracks),
+        )
 
         # Create output directory
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -275,17 +284,22 @@ def create_concatenated_playlist(
             mp3_file = songs_dir / f"{track_id}.mp3"
 
             if not mp3_file.exists():
-                logger.warning(f"MP3 file not found: {mp3_file}")
+                logger.warning("MP3 file not found: %s", mp3_file)
                 continue
 
             # Analyze the audio file format
             audio_info = analyze_audio_file(mp3_file)
             if "error" not in audio_info:
                 logger.info(
-                    f"📊 {track['title']}: {audio_info['codec']}, {audio_info['sample_rate']}Hz, {audio_info['channels']}ch, {audio_info.get('bitrate', 'unknown')}bps"
+                    "📊 %s: %s, %sHz, %sch, %sbps",
+                    track["title"],
+                    audio_info["codec"],
+                    audio_info["sample_rate"],
+                    audio_info["channels"],
+                    audio_info.get("bitrate", "unknown"),
                 )
             else:
-                logger.warning(f"⚠️  Could not analyze {track['title']}")
+                logger.warning("⚠️  Could not analyze %s", track["title"])
 
             # Get actual duration from the file
             actual_duration = get_audio_duration(mp3_file)
@@ -295,7 +309,10 @@ def create_concatenated_playlist(
                 actual_duration = parse_duration(duration_str)
 
             if actual_duration <= 0:
-                logger.warning(f"Could not determine duration for {track_id}, skipping")
+                logger.warning(
+                    "Could not determine duration for %s, skipping",
+                    track_id,
+                )
                 continue
 
             input_files.append(str(mp3_file))
@@ -314,7 +331,10 @@ def create_concatenated_playlist(
 
             current_time += actual_duration
             logger.info(
-                f"Added {track['title']} ({actual_duration:.1f}s) at {current_time - actual_duration:.1f}s"
+                "Added %s (%.1fs) at %.1fs",
+                track["title"],
+                actual_duration,
+                current_time - actual_duration,
             )
 
         if not input_files:
@@ -329,9 +349,6 @@ def create_concatenated_playlist(
         with open(file_list_path, "w", encoding="utf-8") as f:
             for input_file in input_files:
                 f.write(f"file '{input_file}'\n")
-
-        # Run ffmpeg to concatenate
-        import subprocess
 
         ffmpeg_cmd = [
             "ffmpeg",
@@ -354,14 +371,14 @@ def create_concatenated_playlist(
         ]
 
         logger.info("Running ffmpeg to concatenate audio files...")
-        logger.info(f"Command: {' '.join(ffmpeg_cmd)}")
+        logger.info("Command: %s", " ".join(ffmpeg_cmd))
 
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, check=True)
 
         if result.returncode != 0:
-            logger.error(f"ffmpeg failed with return code {result.returncode}")
-            logger.error(f"stderr: {result.stderr}")
-            logger.error(f"stdout: {result.stdout}")
+            logger.error("ffmpeg failed with return code %s", result.returncode)
+            logger.error("stderr: %s", result.stderr)
+            logger.error("stdout: %s", result.stdout)
 
             # Try alternative approach with individual file processing
             logger.info("Trying alternative concatenation approach...")
@@ -369,7 +386,7 @@ def create_concatenated_playlist(
                 songs_dir, output_dir, app_config_path, public_tracks, track_timestamps
             )
 
-        logger.info(f"✅ Concatenated playlist created: {output_file}")
+        logger.info("✅ Concatenated playlist created: %s", output_file)
 
         # Clean up temporary file
         file_list_path.unlink()
@@ -387,23 +404,26 @@ def create_concatenated_playlist(
             json.dump(config, f, indent=2)
 
         logger.info(
-            f"✅ Updated app config with {len(track_timestamps)} track timestamps"
+            "✅ Updated app config with %s track timestamps",
+            len(track_timestamps),
         )
         logger.info(
-            f"Total playlist duration: {current_time:.1f} seconds ({current_time/60:.1f} minutes)"
+            "Total playlist duration: %.1f seconds (%.1f minutes)",
+            current_time,
+            current_time / 60,
         )
 
         return True
 
     except Exception as e:
-        logger.error(f"Error creating concatenated playlist: {e}")
+        logger.error("Error creating concatenated playlist: %s", e)
         return False
 
 
 def main():
     """Main function to create concatenated playlist."""
     parser = argparse.ArgumentParser(
-        description="Create concatenated audio playlist for iOS lock screen compatibility"
+        description="Create concatenated audio playlist for iOS lock screen compatibility"  # noqa: E501 pylint: disable=line-too-long
     )
     parser.add_argument(
         "--out-dir",
@@ -422,16 +442,13 @@ def main():
 
         # Check if required files exist
         if not songs_dir.exists():
-            logger.error(f"Songs directory not found: {songs_dir}")
+            logger.error("Songs directory not found: %s", songs_dir)
             return False
 
         if not app_config_path.exists():
-            logger.error(f"App config not found: {app_config_path}")
+            logger.error("App config not found: %s", app_config_path)
             logger.info("Please run generate_config.py first")
             return False
-
-        # Check if ffmpeg is available
-        import subprocess
 
         try:
             subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
@@ -442,9 +459,11 @@ def main():
             return False
 
         logger.info("🎵 Creating concatenated audio playlist...")
-        success = create_concatenated_playlist(songs_dir, output_dir, app_config_path)
+        concatenated_playlist_created = create_concatenated_playlist(
+            songs_dir, output_dir, app_config_path
+        )
 
-        if success:
+        if concatenated_playlist_created:
             logger.info("🎉 Concatenated playlist created successfully!")
             logger.info("The app will now use timestamp-based seeking for auto-advance")
 
@@ -452,7 +471,7 @@ def main():
             output_file = output_dir / "playlist.mp3"
             if output_file.exists():
                 file_size = output_file.stat().st_size / (1024 * 1024)  # MB
-                logger.info(f"📁 Output file size: {file_size:.1f} MB")
+                logger.info("📁 Output file size: %.1f MB", file_size)
 
                 # Test the file with ffprobe
                 test_cmd = [
@@ -464,7 +483,9 @@ def main():
                     "-show_format",
                     str(output_file),
                 ]
-                test_result = subprocess.run(test_cmd, capture_output=True, text=True)
+                test_result = subprocess.run(
+                    test_cmd, capture_output=True, text=True, check=True
+                )
                 if test_result.returncode == 0:
                     logger.info("✅ Output file is valid and playable")
                 else:
@@ -472,13 +493,13 @@ def main():
         else:
             logger.error("❌ Failed to create concatenated playlist")
 
-        return success
+        return concatenated_playlist_created
 
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error("Unexpected error: %s", e)
         return False
 
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    CONCATENATED_PLAYLIST_CREATED = main()
+    sys.exit(0 if CONCATENATED_PLAYLIST_CREATED else 1)
