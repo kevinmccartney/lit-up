@@ -78,18 +78,7 @@ From the repository root:
 task infra:init
 ```
 
-Or manually:
-
-```bash
-cd projects/infra
-task env:init  # Load .env variables
-terraform init -reconfigure \
-  -backend-config="bucket=$TF_STATE_BUCKET" \
-  -backend-config="key=$TF_STATE_KEY" \
-  -backend-config="region=$TF_STATE_REGION" \
-  -backend-config="dynamodb_table=$TF_STATE_DYNAMODB_TABLE" \
-  -backend-config="encrypt=true"
-```
+This automatically loads environment variables and initializes Terraform with the correct backend configuration.
 
 ### 3. Plan Changes
 
@@ -97,13 +86,6 @@ Preview infrastructure changes:
 
 ```bash
 task infra:plan
-```
-
-Or manually:
-
-```bash
-cd projects/infra
-terraform plan
 ```
 
 ### 4. Apply Infrastructure
@@ -114,27 +96,9 @@ Deploy the infrastructure:
 task infra:apply
 ```
 
-Or manually:
-
-```bash
-cd projects/infra
-terraform apply
-```
-
 **Note**: SSL certificate validation may take several minutes. Terraform will wait for DNS validation to complete.
 
 ## Configuration
-
-### Variables
-
-Key variables can be customized in `variables.tf` or via command line:
-
-- `project` - Project identifier (default: "lit-up")
-- `environment` - Environment name (default: "dev")
-- `aws_region` - AWS region (default: "us-east-1")
-- `auth_username` - Basic auth username (default: "admin")
-- `auth_password` - Basic auth password (default: "changeme123")
-- `ACTIVE_VERSIONS` - Comma-separated list of active versions (default: "v1,v2")
 
 ### Custom Domain
 
@@ -187,8 +151,7 @@ After applying, Terraform outputs:
 View outputs:
 
 ```bash
-cd projects/infra
-terraform output
+task infra:outputs
 ```
 
 ## Common Tasks
@@ -241,26 +204,27 @@ The infrastructure is integrated with the deployment process. When you run `task
 
 ### CloudFront Not Updating
 
-After deploying, invalidate the CloudFront cache:
+After deploying, the CloudFront cache is automatically invalidated by `task ui:deploy`. To invalidate manually:
 
 ```bash
-DISTRIBUTION_ID=$(cd projects/infra && terraform output -raw cloudfront_distribution_id)
-aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+task infra:invalidate
 ```
 
 ### Authentication Not Working
 
 1. Verify SSM parameters exist:
+
    ```bash
    aws ssm get-parameter --name "/lit-up/dev/auth/username"
    aws ssm get-parameter --name "/lit-up/dev/auth/password" --with-decryption
    ```
+
 2. Check Lambda@Edge function has permissions to read SSM
 3. Verify Lambda function is deployed to all edge locations
 
 ## File Structure
 
-```
+```text
 infra/
 ├── backend.tf              # Terraform backend configuration
 ├── provider.aws.tf         # AWS provider configuration

@@ -76,14 +76,14 @@ def emoji_to_png(emoji: str, size: int = 32) -> bytes:
 def load_config(config_path: Path) -> dict[str, Any]:
     """Load the config file."""
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         if not isinstance(data, dict):
             raise ConfigError(f"Config root must be a mapping/dict: {config_path}")
 
         return data
-    except (OSError, IOError, yaml.YAMLError) as e:
+    except (OSError, yaml.YAMLError) as e:
         raise ConfigError(f"Error reading config file: {config_path}: {e}") from e
 
 

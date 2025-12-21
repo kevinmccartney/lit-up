@@ -40,68 +40,8 @@ tasks:
   ui:deploy:
     desc: 'Deploy the UI to S3'
     summary: 'Deploys the UI to S3. Also processes songs (will not re-process any songs that have already been processed), generates the config, concatenates the audio playlist, and generates the favicon.'
-    dir: projects/ui
-    cmds:
-      - |
-        # Use VERSION env var or default to v1 (set early so build process can use it)
-        export VERSION="${VERSION:-v1}"
-        echo "📌 Building version: $VERSION"
-      - |
-        echo "Cleaning dist directory..."
-        rm -rf dist/*
-      - task: api:process_songs
-      - task: api:generate_config
-      - task: api:concatenate_playlist
-      - task: api:generate_favicon
-      - task: ui:build
-      - |
-        # this is a hack to get the converted songs into the dist directory
-        # once we have a proper API, we can remove this
-        echo "Copying .out to dist..."
-        cp -r .out/* dist/
-        if [ $? -eq 0 ]; then
-          echo "✅ .out copied to dist!"
-        else
-          echo "❌ Error: Could not copy .out to dist"
-          exit 1
-        fi
-      - |
-        echo "🚀 Deploying React app to S3..."
-        # Get the S3 bucket name from Terraform outputs
-        BUCKET_NAME=$(cd ../infra && terraform output -raw s3_bucket_name)
-        if [ -z "$BUCKET_NAME" ]; then
-          echo "❌ Error: Could not get S3 bucket name from Terraform outputs"
-          echo "Make sure you've run 'task infra:apply' first"
-          exit 1
-        fi
-        # VERSION was already set earlier, but ensure it's still available
-        VERSION="${VERSION:-v1}"
-        echo "📦 Deploying to bucket: $BUCKET_NAME"
-        # Sync the built React app to S3
-        aws s3 sync dist/ s3://$BUCKET_NAME/$VERSION --delete
-        if [ $? -eq 0 ]; then
-          echo "✅ S3 sync successful!"
-          
-          # Get CloudFront distribution ID and invalidate cache
-          DISTRIBUTION_ID=$(cd ../infra && terraform output -raw cloudfront_distribution_id)
-          if [ -n "$DISTRIBUTION_ID" ]; then
-            echo "🔄 Invalidating CloudFront cache..."
-            aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
-            if [ $? -eq 0 ]; then
-              echo "✅ CloudFront invalidation successful!"
-            else
-              echo "⚠️  CloudFront invalidation failed, but deployment was successful"
-            fi
-          else
-            echo "⚠️  Could not get CloudFront distribution ID, skipping invalidation"
-          fi
-          
-          echo "✅ Deployment successful!"
-          echo "🌐 Your app is available at: $(cd ../infra && terraform output -raw website_url)"
-        else
-          echo "❌ Deployment failed"
-          exit 1
-        fi
+    dir: .
+    cmd: scripts/tasks/ui_deploy.sh "${VERSION:-v1}"
   env:init:
     desc: 'Initialize the environment variables'
     summary: 'Initializes the environment variables from the .env file.'
@@ -162,44 +102,201 @@ tasks:
       echo "Website URLs:"
       echo "Custom Domain: $(terraform output -raw website_url)"
       echo "CloudFront URL: $(terraform output -raw cloudfront_url)"
+  infra:outputs:
+    desc: 'View all Terraform outputs'
+    dir: projects/infra
+    cmd: terraform output
+  infra:invalidate:
+    desc: 'Invalidate CloudFront cache manually'
+    summary: 'Invalidates the CloudFront cache for all paths. This is also done automatically by task ui:deploy.'
+    dir: projects/infra
+    cmds:
+      - |
+        if ! command -v aws >/dev/null 2>&1; then
+          echo "❌ AWS CLI is not installed"
+          echo "  Install with: https://aws.amazon.com/cli/"
+          exit 1
+        fi
+      - |
+        DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+        if [ -z "$DISTRIBUTION_ID" ]; then
+          echo "❌ Error: Could not get CloudFront distribution ID from Terraform outputs"
+          echo "Make sure you've run 'task infra:apply' first"
+          exit 1
+        fi
+        echo "🔄 Invalidating CloudFront cache..."
+        aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
+        if [ $? -eq 0 ]; then
+          echo "✅ CloudFront invalidation successful!"
+        else
+          echo "❌ CloudFront invalidation failed"
+          exit 1
+        fi
   api:lint:
-    desc: 'Lint the API scripts'
-    dir: projects/api/scripts
+    desc: 'Lint all Lambda functions and scripts with ruff'
+    dir: projects/api
     cmds:
-      - task: api:ensure_venv
+      - task: api:install
       - |
-        source venv/bin/activate
-        pip install -r requirements.txt
-        pylint --rcfile=../.pylintrc --ignore=venv,.venv .
-        flake8 --exclude=venv,.venv .
+        echo "🔍 Linting Lambda functions..."
+        for lambda_dir in */; do
+          if [ -f "$lambda_dir"/*.py ] && [ -f "$lambda_dir/pyproject.toml" ]; then
+            echo "  Linting $lambda_dir"
+            uv run ruff check "$lambda_dir"/*.py 2>/dev/null || true
+          fi
+        done
+        echo "🔍 Linting scripts..."
+        uv run ruff check scripts/ 2>/dev/null || true
+  api:lint:lambda:
+    desc: 'Lint a specific Lambda function with ruff (usage: task api:lint:lambda LAMBDA_NAME)'
+    dir: projects/api
+    cmds:
+      - task: api:install
+      - |
+        if [ -z "{{.CLI_ARGS}}" ]; then
+          echo "❌ Error: Please specify Lambda name"
+          echo "Usage: task api:lint:lambda config-post"
+          exit 1
+        fi
+        LAMBDA_NAME={{.CLI_ARGS}}
+        if [ ! -d "$LAMBDA_NAME" ] || [ ! -f "$LAMBDA_NAME/pyproject.toml" ]; then
+          echo "❌ Error: Lambda '$LAMBDA_NAME' not found or missing pyproject.toml"
+          exit 1
+        fi
+        echo "🔍 Linting $LAMBDA_NAME..."
+        uv run ruff check "$LAMBDA_NAME"/*.py
   api:isort:
-    desc: 'Sort imports (isort) for the API scripts'
-    dir: projects/api/scripts
+    desc: 'Sort imports (isort) for all Lambda functions and scripts'
+    dir: projects/api
     cmds:
-      - task: api:ensure_venv
+      - task: api:install
       - |
-        source venv/bin/activate
-        pip install -r requirements.txt
-        isort --profile black .
+        echo "📝 Sorting imports in Lambda functions..."
+        for lambda_dir in */; do
+          if [ -f "$lambda_dir"/*.py ] && [ -f "$lambda_dir/pyproject.toml" ]; then
+            echo "  Sorting $lambda_dir"
+            uv run isort "$lambda_dir"/*.py 2>/dev/null || true
+          fi
+        done
+        echo "📝 Sorting imports in scripts..."
+        uv run isort scripts/*.py
   api:format:
-    desc: 'Format the API scripts'
-    dir: projects/api/scripts
+    desc: 'Format all Lambda functions and scripts with black'
+    dir: projects/api
     cmds:
-      - task: api:ensure_venv
+      - task: api:install
       - |
-        source venv/bin/activate
-        pip install -r requirements.txt
-        black .
+        echo "🎨 Formatting Lambda functions..."
+        for lambda_dir in */; do
+          if [ -f "$lambda_dir"/*.py ] && [ -f "$lambda_dir/pyproject.toml" ]; then
+            echo "  Formatting $lambda_dir"
+            uv run black "$lambda_dir"/*.py 2>/dev/null || true
+          fi
+        done
+        echo "🎨 Formatting scripts..."
+        uv run black scripts/*.py
   api:types:
-    desc: 'Run mypy on the API scripts'
-    dir: projects/api/scripts
+    desc: 'Run mypy type checking on all Lambda functions and scripts'
+    dir: projects/api
     cmds:
-      - task: api:ensure_venv
+      - task: api:install
       - |
-        source venv/bin/activate
-        pip install -r requirements.txt
+        echo "🔍 Type checking Lambda functions..."
+        for lambda_dir in */; do
+          if [ -f "$lambda_dir"/*.py ] && [ -f "$lambda_dir/pyproject.toml" ]; then
+            echo "  Checking $lambda_dir"
+            uv run mypy "$lambda_dir"/*.py 2>/dev/null || true
+          fi
+        done
+        echo "🔍 Type checking scripts..."
+        uv run mypy scripts/*.py 2>/dev/null || true
+  api:install:
+    desc: 'Install all dependencies (dev + runtime) using uv'
+    dir: projects/api
+    cmds:
+      - |
+        if ! command -v uv >/dev/null 2>&1; then
+          echo "❌ uv is not installed"
+          echo "  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+          echo "  Or: pip install uv"
+          exit 1
+        fi
+        echo "📦 Installing dependencies with uv..."
+        uv sync
+        echo "✅ Dependencies installed"
+  api:sync_deps:
+    desc: 'Show runtime dependencies from Lambda pyproject.toml files (uv workspaces handle this automatically)'
+    dir: projects/api
+    cmds:
+      - |
+        echo "📋 Lambda runtime dependencies (automatically managed by uv workspace):"
+        echo ""
+        for lambda_dir in */; do
+          if [ -f "$lambda_dir/pyproject.toml" ]; then
+            echo "  $lambda_dir:"
+            grep -A 10 "^dependencies = \[" "$lambda_dir/pyproject.toml" | grep -v "^dependencies" | sed 's/^/    /' || echo "    (no runtime deps)"
+          fi
+        done
+        echo ""
+        echo "✅ uv workspace automatically installs all Lambda dependencies!"
+  api:python_path:
+    desc: 'Show the Python executable path for the uv workspace'
+    dir: projects/api
+    cmds:
+      - |
+        if ! command -v uv >/dev/null 2>&1; then
+          echo "❌ uv is not installed"
+          exit 1
+        fi
+        PYTHON_PATH=$(uv python find 2>/dev/null)
+        if [ -z "$PYTHON_PATH" ]; then
+          echo "❌ uv virtual environment not found"
+          echo "  Run 'task api:install' first to create the environment"
+          exit 1
+        fi
+        echo "$PYTHON_PATH"
+  api:list:
+    desc: 'List all installed packages in the uv workspace'
+    dir: projects/api
+    cmds:
+      - |
+        if ! command -v uv >/dev/null 2>&1; then
+          echo "❌ uv is not installed"
+          exit 1
+        fi
+        uv pip list
+  api:package:config-post:
+    desc: 'Package the config-post Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh config-post "${DOCKER_PLATFORM:-linux/amd64}"
+  api:deploy:config-post:
+    desc: 'Deploy the config-post Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh config-post "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  up:
+    desc: 'Start local development stack (UI + API + DynamoDB)'
+    summary: 'Starts the full local development environment via docker compose: UI dev server, SAM API Gateway/Lambda emulation, DynamoDB Local, and DynamoDB Admin UI.'
+    dir: .
+    cmds:
+      - |
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "❌ docker is not installed"
+          exit 1
+        fi
+        docker compose -f docker-compose.local.yml up --build
+  down:
+    desc: 'Stop local development stack'
+    summary: 'Stops all local development services (UI, API, DynamoDB) running in docker compose.'
+    dir: .
+    cmds:
+      - |
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "❌ docker is not installed"
+          exit 1
+        fi
+        docker compose -f docker-compose.local.yml down
   api:ensure_venv:
-    desc: 'Ensure the Python virtual environment is setup'
+    desc: 'Ensure the Python virtual environment is setup (legacy - for scripts/)'
     dir: projects/api/scripts
     cmds:
       - |

@@ -104,9 +104,9 @@ class ConfigError(Exception):
 def load_yaml_dict(path: Path) -> dict[str, Any]:
     """Load a YAML file and require the root to be a dict."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-    except (OSError, IOError, yaml.YAMLError) as e:
+    except (OSError, yaml.YAMLError) as e:
         raise ConfigError(f"Error reading YAML file: {path}: {e}") from e
 
     if not isinstance(data, dict):

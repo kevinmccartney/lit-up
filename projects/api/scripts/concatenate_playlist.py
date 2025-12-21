@@ -52,7 +52,7 @@ class TrackTimestamp(TypedDict):
 
 
 def load_json(path: Path) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Expected JSON root to be an object/dict: {path}")

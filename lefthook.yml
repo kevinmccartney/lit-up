@@ -14,7 +14,7 @@ pre-commit:
       run: scripts/git-hooks/eslint_ui_check.sh
     lint_api:
       glob: 'projects/api/**/*.{py}'
-      run: cd projects/api && ruff check .
+      run: cd projects/api && ruff check . --fix
     isort_api:
       glob: 'projects/api/**/*.py'
       run: scripts/git-hooks/isort_format.sh {staged_files}

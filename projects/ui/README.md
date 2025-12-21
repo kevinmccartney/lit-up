@@ -25,7 +25,7 @@ The frontend React application for the Lit Up music playlist platform. A modern,
 
 ## Project Structure
 
-```
+```text
 src/
 ├── components/          # React components
 │   ├── MediaPlayer.tsx  # Main audio player component
@@ -59,13 +59,6 @@ From the repository root:
 task ui:dev
 ```
 
-Or from this directory:
-
-```bash
-npm install
-npm run dev
-```
-
 The development server will start at `http://localhost:5173` (or the next available port).
 
 ### Building
@@ -77,12 +70,6 @@ From the repository root:
 task ui:build
 ```
 
-Or from this directory:
-
-```bash
-npm run build
-```
-
 The built files will be output to `dist/` directory.
 
 ### Preview Production Build
@@ -92,12 +79,6 @@ From the repository root:
 ```bash
 # Preview production build
 task ui:preview
-```
-
-Or from this directory:
-
-```bash
-npm run preview
 ```
 
 ## Configuration

@@ -36,6 +36,19 @@ alwaysApply: true
 - **Update hooks/tasks when relevant**:
   - If you add a new formatter/linter, wire it into both `taskfile.yaml` and `lefthook.yml` when appropriate.
   - Prefer adding new hook scripts in `scripts/git-hooks/` and keep them non-interactive.
+- **Update documentation when introducing meaningful changes**:
+  - Update README files when adding new patterns, non-obvious behaviors, or shared conventions.
+  - Document any setup steps, configuration changes, or architectural decisions that affect how developers work with the codebase.
+  - Keep local development instructions current and accurate.
+  - **Always reference `taskfile.yaml` tasks in documentation**:
+    - When documenting commands, prefer referencing tasks from `taskfile.yaml` (e.g., `task api:install`) over raw commands.
+    - If a task doesn't exist for a common operation, consider adding it to `taskfile.yaml` first.
+    - Only show raw commands when they're necessary for understanding or when no task exists (and note that a task should be created).
+- **Local development uses Docker Compose**:
+  - Use docker compose for all local environment operations whenever possible.
+  - This repo does not support on-host local development (no installing SAM CLI, Python deps, etc. on the host).
+  - Prefer adding new services to existing compose files or creating new compose files for new environments.
+  - Keep all local dev tooling containerized and documented in compose files.
 
 ## TypeScript/React conventions
 

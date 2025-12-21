@@ -29,8 +29,14 @@ variable "auth_password" {
   sensitive   = true
 }
 
-variable "ACTIVE_VERSIONS" {
+variable "active_versions" {
   description = "Comma-delimited list of existing versions, e.g. 'v1,v2,v3'"
   type        = string
   default     = "v1,v2"
+}
+
+variable "api_allowed_source_cidrs" {
+  description = "List of CIDRs allowed to invoke the REST API Gateway (resource policy). Example: [\"203.0.113.10/32\"]"
+  type        = list(string)
+  default     = []
 }

@@ -1,0 +1,87 @@
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8000:8000"
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "8001:8001"
+    depends_on:
+      - dynamodb
+
+  # One-shot init: creates the table if it doesn't exist yet.
+  # Uses the same image as `sam` (has python + boto3), so it doesn't need runtime pip installs.
+  dynamodb-init:
+    build:
+      context: ./projects/api/local/sam
+    working_dir: /workspace/projects/api
+    volumes:
+      - ./projects/api:/workspace/projects/api
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    command: >
+      bash -lc
+      "python local/scripts/create_local_dynamodb_table.py --endpoint-url http://dynamodb:8000 --table-name lit-up-dev-configs"
+    depends_on:
+      - dynamodb
+    restart: "no"
+
+  sam:
+    build:
+      context: ./projects/api/local/sam
+    # Important: when SAM talks to the host Docker daemon via /var/run/docker.sock, any bind-mount
+    # source paths it requests MUST exist on the host. Mounting the repo at ${PWD} ensures the paths
+    # SAM uses inside the container match real host paths.
+    working_dir: ${PWD}/projects/api/local
+    volumes:
+      - .:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3000:3000"
+    depends_on:
+      - dynamodb
+      - dynamodb-init
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      AWS_REGION: us-east-1
+      SAM_CLI_TELEMETRY: "0"
+    # Use exec-form command to avoid any shell quoting/newline surprises.
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+        sam build --use-container -t template.yaml
+        exec sam local start-api \
+          --template .aws-sam/build/template.yaml \
+          --env-vars env.docker.json \
+          --port 3000 \
+          --host 0.0.0.0 \
+          --container-host host.docker.internal \
+          --container-host-interface 0.0.0.0 \
+          --debug
+
+
+  ui:
+    image: node:20-alpine
+    working_dir: /workspace/projects/ui
+    volumes:
+      - ./:/workspace
+    ports:
+      - "5173:5173"
+    environment:
+      # Helps file watching work reliably on macOS
+      CHOKIDAR_USEPOLLING: "true"
+    command: >
+      sh -lc
+      "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"

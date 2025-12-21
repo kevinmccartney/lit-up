@@ -4,3 +4,17 @@ dist
 .DS_Store
 lit_up_config.yaml
 node_modules/
+
+# Python virtual environments
+**/venv/
+**/venv-dev/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# uv
+uv.lock
+**/uv.lock

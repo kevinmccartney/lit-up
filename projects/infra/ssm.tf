@@ -28,7 +28,7 @@ resource "aws_ssm_parameter" "active_versions" {
   name        = "/${var.project}/${var.environment}/active_versions"
   description = "Comma-delimited list of active app versions, e.g. v1,v5"
   type        = "String"
-  value       = var.ACTIVE_VERSIONS
+  value       = var.active_versions
   overwrite   = true
 
   tags = {

@@ -76,13 +76,21 @@ Terraform infrastructure as code for AWS deployment. Manages:
    task infra:apply
    ```
 
-3. **Run the development server**
+3. **Start local development stack**
 
    ```bash
-   task ui:dev
+   task up
    ```
 
+   This starts the entire local development environment:
+
+   - UI development server on `http://localhost:5173`
+   - API Gateway + Lambda emulation on `http://localhost:3001`
+   - DynamoDB Local on `http://localhost:8000`
+   - DynamoDB Admin UI on `http://localhost:8001`
+
 4. **Deploy to production**
+
    ```bash
    task ui:deploy
    ```
@@ -102,7 +110,8 @@ See `lit_up_config.yaml.sample` for an example configuration.
 
 The project uses [Task](https://taskfile.dev) for task automation. Common tasks include:
 
-- `task ui:dev` - Start development server
+- `task up` - Start local development stack (UI + API + DynamoDB)
+- `task down` - Stop local development stack
 - `task ui:build` - Build for production
 - `task ui:preview` - Preview production build
 - `task ui:deploy` - Deploy to S3/CloudFront
@@ -140,10 +149,10 @@ This project uses [Lefthook](https://github.com/evilmartians/lefthook) for manag
 
 We enforce [Conventional Commits](https://www.conventionalcommits.org/) to keep history readable and to enable future automation (changelogs, releases, etc.).
 
-- **Wizard (`prepare-commit-msg`)**: If you run `git commit` _without_ `-m`, you’ll get an interactive prompt to build a Conventional Commit message.
+- **Wizard (`prepare-commit-msg`)**: If you run `git commit` _without_ `-m`, you will get an interactive prompt to build a Conventional Commit message.
 - **Validator (`commit-msg`)**: Every commit message is validated before the commit is created.
 
-### Configuration
+### Hook Configuration
 
 Git hooks are configured in `lefthook.yml` at the root of the repository. The configuration supports:
 

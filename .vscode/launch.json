@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to SAM (config-post)",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 5890
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/projects/api/config-post",
+          "remoteRoot": "/var/task"
+        }
+      ],
+      "justMyCode": true
+    }
+  ]
+}

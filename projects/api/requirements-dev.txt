@@ -1,0 +1,19 @@
+# Shared development dependencies for all Lambda functions
+# Install with: pip install -r requirements-dev.txt
+
+# Code formatting
+black>=24.0.0
+isort>=5.13.0
+
+# Linting
+pylint>=3.0.0
+flake8>=7.0.0
+
+# Type checking
+mypy>=1.19.1
+types-PySocks>=1.7.1.20251001
+types-PyYAML>=6.0.12.20250915
+types-requests>=2.32.4.20250913
+
+# Security
+pip-audit>=2.10.0

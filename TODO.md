@@ -35,6 +35,16 @@
   - [x] tf format
 - [x] chore: add instructions file
 - [x] refactor: clean up repo in general (with the help of cursor 🤖)
+- [ ] feat: build config REST resources
+  - [x] API key
+  - [ ] POST
+  - [ ] GET
+- [ ] chore: dev env
+  - [x] Should I just set up debug by default?
+  - [x] Hoist docker compose to monorepo root
+  - [x] Can I get fid of local dir?
+  - [x] Do I really need UV?
+  - [x] Update READMEs to remove consider adding scripts
 - [ ] feat: build songs REST resources
 - [ ] feat: build playlist REST resources
 - [ ] chore: host OpenAPI spec
