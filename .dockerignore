@@ -1,0 +1,51 @@
+# Python virtual environments (let containers create their own)
+**/.venv/
+**/venv/
+**/venv-dev/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Node modules (let containers install their own)
+**/node_modules/
+
+# Build artifacts
+dist/
+.out/
+*.zip
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.dockerignore
+docker-compose*.yml
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Lock files (containers will generate their own)
+uv.lock
+package-lock.json
+

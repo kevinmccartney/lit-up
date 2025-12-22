@@ -1,0 +1,22 @@
+{
+  "resource": "/configs/{id}",
+  "path": "/configs/00000000-0000-0000-0000-000000000000",
+  "httpMethod": "PATCH",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "multiValueHeaders": {},
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "id": "00000000-0000-0000-0000-000000000000"
+  },
+  "stageVariables": null,
+  "requestContext": {
+    "resourcePath": "/configs/{id}",
+    "httpMethod": "PATCH",
+    "path": "/dev/configs/00000000-0000-0000-0000-000000000000"
+  },
+  "body": "{\"headerMessage\":\"patched\"}",
+  "isBase64Encoded": false
+}

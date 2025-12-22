@@ -6,6 +6,7 @@ Writes playlist config to DynamoDB.
 import json
 import logging
 import os
+import uuid
 from decimal import Decimal
 from typing import Any
 
@@ -149,56 +150,6 @@ def _parse_request_body(event: dict[str, Any]) -> dict[str, Any]:
     raise ValueError("Request body must be valid JSON")
 
 
-def _maybe_wait_for_debugger() -> None:
-    """
-    Optionally wait for a debugger to attach (local development only).
-
-    Enable with env vars:
-    - DEBUGPY_ENABLE=1
-    - DEBUGPY_WAIT_FOR_CLIENT=1
-    - DEBUGPY_HOST=0.0.0.0
-    - DEBUGPY_PORT=5890
-    """
-
-    debug_enabled = os.environ.get("DEBUGPY_ENABLE") in {"1", "true", "TRUE", "True"}
-    if not debug_enabled:
-        return
-
-    wait = os.environ.get("DEBUGPY_WAIT_FOR_CLIENT") in {"1", "true", "TRUE", "True"}
-    # Use stderr so this shows up even when INFO logs are suppressed.
-    debug_host = os.environ.get("DEBUGPY_HOST", "0.0.0.0")
-    debug_port = os.environ.get("DEBUGPY_PORT", "5890")
-    print(
-        f"[debugpy] enabled wait_for_client={wait} host={debug_host} port={debug_port}",
-        flush=True,
-    )
-
-    try:
-        import importlib
-
-        debugpy = importlib.import_module("debugpy")
-    except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.warning("DEBUGPY_ENABLE set but debugpy is not installed")
-        return
-
-    host = os.environ.get("DEBUGPY_HOST", "0.0.0.0")
-    try:
-        port = int(os.environ.get("DEBUGPY_PORT", "5890"))
-    except ValueError:
-        port = 5890
-
-    try:
-        debugpy.listen((host, port))
-    except OSError:
-        # When SAM is run with `-d`, it may already have bound the debug port.
-        # In that case, just proceed to wait_for_client below.
-        logger.exception("debugpy failed to listen on %s:%s (continuing)", host, port)
-
-    if wait:
-        print("[debugpy] waiting for debugger attach...", flush=True)
-        debugpy.wait_for_client()
-
-
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     """
     Lambda handler for API Gateway proxy integration.
@@ -211,7 +162,6 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     Returns:
         API Gateway proxy response format
     """
-    _maybe_wait_for_debugger()
     try:
         # Parse request body
         try:
@@ -240,10 +190,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 },
             )
 
-        # Get version from query string or default to "v1"
-        # Version handling is at infrastructure level, but we accept it as query param
-        query_params = event.get("queryStringParameters") or {}
-        version = query_params.get("version", "v1")
+        # Generate a unique ID for this config record
+        config_id = str(uuid.uuid4())
 
         # Convert Pydantic model to dict for DynamoDB storage
         # Use model_dump() to keep Decimals (required by DynamoDB)
@@ -252,18 +200,18 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         # Write config to DynamoDB
         table = dynamodb.Table(CONFIG_TABLE_NAME)
         item = {
-            "version": version,
+            "id": config_id,
             "config": config_dict,  # Store as JSON dict (DynamoDB will handle it)
         }
         table.put_item(Item=item)
 
-        logger.info("Saved config version=%s table=%s", version, CONFIG_TABLE_NAME)
+        logger.info("Saved config id=%s table=%s", config_id, CONFIG_TABLE_NAME)
 
         # Convert back to JSON-serializable format (floats) for response
         # Use model_dump(mode='json') to apply field serializers (Decimal -> float)
         config_dict_json = config.model_dump(mode="json")
         response_item = {
-            "version": version,
+            "id": config_id,
             "config": config_dict_json,
         }
 

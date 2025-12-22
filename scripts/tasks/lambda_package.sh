@@ -48,6 +48,10 @@ cp "$LAMBDA_DIR/handler.py" "$PACKAGE_DIR/"
 echo "  Installing runtime dependencies..."
 # Extract dependencies from pyproject.toml
 DEPS=$(python3 -c "import tomllib; f = open('$LAMBDA_DIR/pyproject.toml', 'rb'); data = tomllib.load(f); f.close(); deps = data.get('project', {}).get('dependencies', []); print(' '.join(deps))" 2>/dev/null || echo "")
+HAS_PYDANTIC="0"
+if echo " $DEPS " | grep -Eq "[[:space:]]pydantic([[:space:]]|==|>=|<=|~=|!=|<|>)"; then
+  HAS_PYDANTIC="1"
+fi
 
 if [ -z "$DEPS" ]; then
   echo "  ⚠️  No runtime dependencies found (or error reading pyproject.toml)"
@@ -61,17 +65,19 @@ else
     -v "$(pwd)/$PACKAGE_DIR:/var/task" \
     -v "$(pwd)/$LAMBDA_DIR:/lambda-source" \
     public.ecr.aws/lambda/python:3.13 \
-    -c "set -euo pipefail; pip install --upgrade pip >/dev/null; pip install --target /var/task --no-cache-dir $DEPS >/dev/null; PYTHONPATH=/var/task python3 -c 'import pydantic_core._pydantic_core' >/dev/null"
+    -c "set -euo pipefail; pip install --upgrade pip >/dev/null; pip install --target /var/task --no-cache-dir $DEPS >/dev/null; if [ '${HAS_PYDANTIC}' = '1' ]; then PYTHONPATH=/var/task python3 -c 'import pydantic_core._pydantic_core' >/dev/null; fi"
 fi
 
-# Verify pydantic-core binary extension exists (this is what Lambda needs)
-PCORE_SO_COUNT=$(find "$PACKAGE_DIR" -maxdepth 2 -type f -name "_pydantic_core*.so" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$PCORE_SO_COUNT" -gt 0 ]; then
-  : # ok
-else
-  echo "  ❌ pydantic_core native extension NOT found in package directory"
-  echo "     This will crash on Lambda with: No module named 'pydantic_core._pydantic_core'"
-  exit 1
+# If this Lambda uses pydantic, verify pydantic-core binary extension exists (this is what Lambda needs)
+if [ "$HAS_PYDANTIC" = "1" ]; then
+  PCORE_SO_COUNT=$(find "$PACKAGE_DIR" -maxdepth 2 -type f -name "_pydantic_core*.so" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$PCORE_SO_COUNT" -gt 0 ]; then
+    : # ok
+  else
+    echo "  ❌ pydantic_core native extension NOT found in package directory"
+    echo "     This will crash on Lambda with: No module named 'pydantic_core._pydantic_core'"
+    exit 1
+  fi
 fi
 
 # Create zip file
@@ -81,12 +87,26 @@ zip -r "../$LAMBDA_NAME.zip" . -q
 cd ../..
 
 # Verify zip contents (ensure we produced the right arch)
-if unzip -l "$ZIP_FILE" | grep -Eq "pydantic_core/_pydantic_core.*x86_64-linux-gnu\.so"; then
-  : # ok
-else
-  echo "  ❌ Expected x86_64 Linux pydantic_core native extension NOT found in zip"
-  echo "     (If you're deploying an ARM64 Lambda, set DOCKER_PLATFORM=linux/arm64 and update the check.)"
-  exit 1
+if [ "$HAS_PYDANTIC" = "1" ]; then
+  # Accept any pydantic-core native extension; log a warning if arch substring missing
+  PCORE_ENTRY=$(unzip -l "$ZIP_FILE" | grep -E "pydantic_core/_pydantic_core.*\.so" || true)
+  if [ -z "$PCORE_ENTRY" ]; then
+    echo "  ❌ pydantic_core native extension NOT found in zip"
+    echo "     Current DOCKER_PLATFORM='$DOCKER_PLATFORM'."
+    echo "     Try setting DOCKER_PLATFORM=linux/arm64 for arm64 Lambdas, or linux/amd64 for x86_64."
+    exit 1
+  fi
+  EXPECTED_ARCH_HINT="aarch64"
+  if echo "$DOCKER_PLATFORM" | grep -qi "amd64\|x86_64"; then
+    EXPECTED_ARCH_HINT="x86_64"
+  fi
+  if echo "$PCORE_ENTRY" | grep -qi "$EXPECTED_ARCH_HINT"; then
+    : # looks consistent
+  else
+    echo "  ⚠️  Found pydantic_core native extension but arch hint '$EXPECTED_ARCH_HINT' not in filename:"
+    echo "     $PCORE_ENTRY"
+    echo "     Ensure DOCKER_PLATFORM matches your Lambda architecture."
+  fi
 fi
 
 # Clean up package directory (keep zip)

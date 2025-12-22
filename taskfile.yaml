@@ -273,6 +273,94 @@ tasks:
     desc: 'Deploy the config-post Lambda function to AWS'
     dir: .
     cmd: scripts/tasks/lambda_deploy.sh config-post "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:config-get:
+    desc: 'Package the config-get Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh config-get "${DOCKER_PLATFORM:-linux/amd64}"
+  api:deploy:config-get:
+    desc: 'Deploy the config-get Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh config-get "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:config-delete:
+    desc: 'Package the config-delete Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh config-delete "${DOCKER_PLATFORM:-linux/amd64}"
+  api:deploy:config-delete:
+    desc: 'Deploy the config-delete Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh config-delete "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:config-list:
+    desc: 'Package the config-list Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh config-list "${DOCKER_PLATFORM:-linux/amd64}"
+  api:deploy:config-list:
+    desc: 'Deploy the config-list Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh config-list "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:config-patch:
+    desc: 'Package the config-patch Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh config-patch "${DOCKER_PLATFORM:-linux/amd64}"
+  api:deploy:config-patch:
+    desc: 'Deploy the config-patch Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh config-patch "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:deploy:
+    desc: 'Package and deploy all API lambdas (config-post/get/delete/list/patch)'
+    dir: .
+    cmds:
+      - task: api:package:config-post
+      - task: api:deploy:config-post
+      - task: api:package:config-get
+      - task: api:deploy:config-get
+      - task: api:package:config-delete
+      - task: api:deploy:config-delete
+      - task: api:package:config-list
+      - task: api:deploy:config-list
+      - task: api:package:config-patch
+      - task: api:deploy:config-patch
+  api:e2e:
+    desc: 'Run API E2E tests against local Flask server (default) or deployed API Gateway'
+    summary: 'Runs pytest E2E tests. Set API_BASE_URL env var to test against deployed API Gateway (e.g., API_BASE_URL=https://api.example.com/dev task api:test). Set API_KEY env var if testing deployed API Gateway. For local testing, ensure Flask server is running via "task up".'
+    dir: projects/api
+    cmds:
+      - |
+        if ! command -v uv >/dev/null 2>&1; then
+          echo "❌ uv is not installed"
+          exit 1
+        fi
+        echo "🧪 Running API E2E tests..."
+        API_URL="${API_BASE_URL:-http://127.0.0.1:3000}"
+        echo "   API_BASE_URL=${API_URL}"
+        echo "   API_KEY=${API_KEY:+set (hidden)}"
+        if [ "${API_URL}" = "http://127.0.0.1:3000" ]; then
+          echo ""
+          echo "⚠️  Note: Testing against local Flask server."
+          echo "   Make sure the server is running: task up"
+        fi
+        uv run pytest tests/ -v
+  api:e2e:local:
+    desc: 'Run API E2E tests against local Flask server (explicit)'
+    dir: projects/api
+    cmds:
+      - |
+        API_BASE_URL=http://127.0.0.1:3000 task api:e2e
+  api:e2e:deployed:
+    desc: 'Run API E2E tests against deployed API Gateway (requires API_BASE_URL and API_KEY env vars)'
+    dir: projects/api
+    cmds:
+      - |
+        if [ -z "${API_BASE_URL:-}" ]; then
+          echo "❌ API_BASE_URL environment variable is required"
+          echo "   Example: API_BASE_URL=https://api.example.com/dev API_KEY=xxx task api:test:deployed"
+          exit 1
+        fi
+        if [ -z "${API_KEY:-}" ]; then
+          echo "❌ API_KEY environment variable is required"
+          echo "   Example: API_BASE_URL=https://api.example.com/dev API_KEY=xxx task api:test:deployed"
+          exit 1
+        fi
+        task api:e2e
   up:
     desc: 'Start local development stack (UI + API + DynamoDB)'
     summary: 'Starts the full local development environment via docker compose: UI dev server, SAM API Gateway/Lambda emulation, DynamoDB Local, and DynamoDB Admin UI.'

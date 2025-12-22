@@ -40,6 +40,7 @@ resource "aws_lambda_function" "healthz_function" {
   handler          = "index.handler"
   source_code_hash = data.archive_file.ping_lambda_zip.output_base64sha256
   runtime          = "nodejs22.x"
+  architectures    = ["arm64"]
   timeout          = 5
   memory_size      = 128
 
@@ -69,6 +70,7 @@ resource "aws_lambda_function" "config_post_function" {
   handler          = "handler.handler"
   source_code_hash = data.archive_file.config_post_lambda_zip.output_base64sha256
   runtime          = "python3.13"
+  architectures    = ["arm64"]
   timeout          = 10
   memory_size      = 128
 
@@ -80,6 +82,138 @@ resource "aws_lambda_function" "config_post_function" {
 
   tags = {
     Name        = "${var.project}-${var.environment}-config-post"
+    Environment = var.environment
+  }
+}
+
+# Lambda function for GET /config/{id} (Python, deployed from api project)
+data "archive_file" "config_get_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-config-get-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+resource "aws_lambda_function" "config_get_function" {
+  filename         = data.archive_file.config_get_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-config-get"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.config_get_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-config-get"
+    Environment = var.environment
+  }
+}
+
+# Lambda function for DELETE /config/{id} (Python, deployed from api project)
+data "archive_file" "config_delete_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-config-delete-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+resource "aws_lambda_function" "config_delete_function" {
+  filename         = data.archive_file.config_delete_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-config-delete"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.config_delete_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-config-delete"
+    Environment = var.environment
+  }
+}
+
+# Lambda function for GET /configs (Python, deployed from api project)
+data "archive_file" "config_list_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-config-list-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+resource "aws_lambda_function" "config_list_function" {
+  filename         = data.archive_file.config_list_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-config-list"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.config_list_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-config-list"
+    Environment = var.environment
+  }
+}
+
+# Lambda function for PATCH /configs/{id} (Python, deployed from api project)
+data "archive_file" "config_patch_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-config-patch-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+resource "aws_lambda_function" "config_patch_function" {
+  filename         = data.archive_file.config_patch_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-config-patch"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.config_patch_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-config-patch"
     Environment = var.environment
   }
 }
@@ -131,7 +265,13 @@ resource "aws_api_gateway_resource" "healthz" {
 resource "aws_api_gateway_resource" "config" {
   rest_api_id = aws_api_gateway_rest_api.lit_up_api.id
   parent_id   = aws_api_gateway_rest_api.lit_up_api.root_resource_id
-  path_part   = "config"
+  path_part   = "configs"
+}
+
+resource "aws_api_gateway_resource" "config_id" {
+  rest_api_id = aws_api_gateway_rest_api.lit_up_api.id
+  parent_id   = aws_api_gateway_resource.config.id
+  path_part   = "{id}"
 }
 
 resource "aws_api_gateway_method" "healthz_get" {
@@ -148,6 +288,47 @@ resource "aws_api_gateway_method" "config_post" {
   http_method      = "POST"
   authorization    = "NONE"
   api_key_required = true
+}
+
+resource "aws_api_gateway_method" "config_get" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.config_id.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+resource "aws_api_gateway_method" "config_delete" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.config_id.id
+  http_method      = "DELETE"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+resource "aws_api_gateway_method" "config_list" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.config.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "config_patch" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.config_id.id
+  http_method      = "PATCH"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
 }
 
 resource "aws_api_gateway_integration" "healthz_get" {
@@ -168,6 +349,42 @@ resource "aws_api_gateway_integration" "config_post" {
   uri                     = aws_lambda_function.config_post_function.invoke_arn
 }
 
+resource "aws_api_gateway_integration" "config_get" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.config_id.id
+  http_method             = aws_api_gateway_method.config_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.config_get_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "config_delete" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.config_id.id
+  http_method             = aws_api_gateway_method.config_delete.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.config_delete_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "config_list" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.config.id
+  http_method             = aws_api_gateway_method.config_list.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.config_list_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "config_patch" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.config_id.id
+  http_method             = aws_api_gateway_method.config_patch.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.config_patch_function.invoke_arn
+}
+
 resource "aws_lambda_permission" "allow_apigw_invoke_healthz" {
   statement_id  = "AllowExecutionFromApiGatewayHealthz"
   action        = "lambda:InvokeFunction"
@@ -181,7 +398,39 @@ resource "aws_lambda_permission" "allow_apigw_invoke_config_post" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.config_post_function.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/POST/config"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/POST/configs"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_config_get" {
+  statement_id  = "AllowExecutionFromApiGatewayConfigGet"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.config_get_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/GET/configs/*"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_config_delete" {
+  statement_id  = "AllowExecutionFromApiGatewayConfigDelete"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.config_delete_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/DELETE/configs/*"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_config_list" {
+  statement_id  = "AllowExecutionFromApiGatewayConfigList"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.config_list_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/GET/configs"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_config_patch" {
+  statement_id  = "AllowExecutionFromApiGatewayConfigPatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.config_patch_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/PATCH/configs/*"
 }
 
 resource "aws_api_gateway_deployment" "lit_up" {
@@ -194,9 +443,23 @@ resource "aws_api_gateway_deployment" "lit_up" {
       aws_api_gateway_method.healthz_get.api_key_required,
       aws_api_gateway_integration.healthz_get.id,
       aws_api_gateway_resource.config.id,
+      aws_api_gateway_resource.config_id.id,
       aws_api_gateway_method.config_post.id,
       aws_api_gateway_method.config_post.api_key_required,
       aws_api_gateway_integration.config_post.id,
+      aws_api_gateway_method.config_get.id,
+      aws_api_gateway_method.config_get.api_key_required,
+      aws_api_gateway_integration.config_get.id,
+      aws_api_gateway_method.config_delete.id,
+      aws_api_gateway_method.config_delete.api_key_required,
+      aws_api_gateway_integration.config_delete.id,
+      aws_api_gateway_resource.config.id,
+      aws_api_gateway_method.config_list.id,
+      aws_api_gateway_method.config_list.api_key_required,
+      aws_api_gateway_integration.config_list.id,
+      aws_api_gateway_method.config_patch.id,
+      aws_api_gateway_method.config_patch.api_key_required,
+      aws_api_gateway_integration.config_patch.id,
     ]))
   }
 

@@ -1,21 +1,19 @@
 {
-  "resource": "/config",
-  "path": "/config",
+  "resource": "/configs",
+  "path": "/configs",
   "httpMethod": "POST",
   "headers": {
     "content-type": "application/json"
   },
   "multiValueHeaders": {},
-  "queryStringParameters": {
-    "version": "v1"
-  },
+  "queryStringParameters": null,
   "multiValueQueryStringParameters": null,
   "pathParameters": null,
   "stageVariables": null,
   "requestContext": {
-    "resourcePath": "/config",
+    "resourcePath": "/configs",
     "httpMethod": "POST",
-    "path": "/dev/config"
+    "path": "/dev/configs"
   },
   "body": "{\"tracks\":[{\"id\":\"t1\",\"src\":\"/songs/t1.mp3\",\"title\":\"Track 1\",\"artist\":\"Artist\",\"duration\":\"00:30\",\"cover\":\"/album_art/t1.jpg\",\"isSecret\":false}],\"headerMessage\":\"hello\",\"buildDatetime\":\"2025-01-01T00:00:00Z\",\"buildHash\":\"local\",\"concatenatedPlaylist\":{\"enabled\":false,\"file\":\"/playlist.mp3\",\"tracks\":[],\"totalDuration\":0}}",
   "isBase64Encoded": false

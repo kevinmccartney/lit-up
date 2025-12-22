@@ -3,10 +3,6 @@ name = "lit-up-api"
 version = "0.1.0"
 description = "Lit Up API - Lambda functions workspace"
 requires-python = ">=3.13"
-dependencies = [
-    # Lambda runtime dependencies will be inherited from workspace members
-    "boto3-stubs>=1.42.13",
-]
 
 [tool.uv]
 dev-dependencies = [
@@ -30,10 +26,16 @@ dev-dependencies = [
     # Ideally, we'd find a way to automatically sync workspace member runtime deps to root dev-deps.
     "boto3>=1.35.0",
     "pydantic>=2.0.0",
+    "boto3-stubs>=1.42.13",
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+    # Testing
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
 ]
 
 [tool.uv.workspace]
-members = ["config-post"]
+members = ["config-post", "config-get", "config-delete", "config-list", "config-patch"]
 
 [tool.black]
 line-length = 88
@@ -72,3 +74,19 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "e2e: End-to-end API tests",
+    "local: Tests that run against local Flask server",
+    "deployed: Tests that run against deployed API Gateway",
+]

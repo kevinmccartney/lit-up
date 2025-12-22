@@ -85,9 +85,7 @@ Terraform infrastructure as code for AWS deployment. Manages:
    This starts the entire local development environment:
 
    - UI development server on `http://localhost:5173`
-   - API Gateway + Lambda emulation on `http://localhost:3001`
-   - DynamoDB Local on `http://localhost:8000`
-   - DynamoDB Admin UI on `http://localhost:8001`
+   - Local API server (Flask) on `http://localhost:3000`
 
 4. **Deploy to production**
 

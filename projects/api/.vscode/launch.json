@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: E2E Tests (Local)",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/", "-v", "-s"],
+      "env": {
+        "API_BASE_URL": "http://127.0.0.1:3000"
+      },
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: E2E Tests (Deployed)",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/", "-v", "-s"],
+      "env": {
+        "API_BASE_URL": "${env:API_BASE_URL}",
+        "API_KEY": "${env:API_KEY}"
+      },
+      "justMyCode": false,
+      "console": "integratedTerminal"
+    }
+  ]
+}

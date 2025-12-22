@@ -1,0 +1,10 @@
+[project]
+name = "config-get"
+version = "0.1.0"
+description = "Lambda function for GET /config/{id} endpoint"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.35.0",
+]
+
+

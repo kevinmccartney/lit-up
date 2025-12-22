@@ -21,6 +21,9 @@ api/
 ├── config-post/             # Lambda function (workspace member)
 │   ├── handler.py
 │   └── pyproject.toml      # Runtime deps (boto3, etc.)
+├── config-get/              # Lambda function (workspace member)
+│   ├── handler.py
+│   └── pyproject.toml      # Runtime deps (boto3, etc.)
 ├── scripts/                 # Utility scripts (legacy, uses own venv)
 │   ├── *.py
 │   └── requirements.txt
@@ -63,6 +66,7 @@ This creates a single `.venv/` with:
 # Use task shortcuts for common operations:
 task api:lint              # Lint all Lambdas + scripts
 task api:lint:lambda config-post  # Lint specific Lambda
+task api:lint:lambda config-get   # Lint specific Lambda
 task api:format            # Format all code
 task api:isort             # Sort imports
 task api:types             # Type check
@@ -70,12 +74,43 @@ task api:types             # Type check
 
 For direct uv commands, see the [uv Commands Reference](#uv-commands-reference) section below.
 
+## Local API server (Flask via Docker Compose)
+
+- Start the full stack (API + UI): `task up`
+- API endpoints (pluralized):
+  - `http://127.0.0.1:3000/configs` (POST)
+  - `http://127.0.0.1:3000/configs/{id}` (GET)
+  - `http://127.0.0.1:3000/configs/{id}` (PATCH)
+  - `http://127.0.0.1:3000/configs/{id}` (DELETE)
+  - `http://127.0.0.1:3000/configs` (GET)
+- UI dev server: `http://127.0.0.1:5173`
+- Debugging: use the VS Code attach config (`Attach to Local API (Flask)`) to connect to debugpy on port `5890` after running `task up`.
+
+Example requests (from repo root):
+
+```bash
+curl -sS -X POST "http://127.0.0.1:3000/configs" \
+  -H "content-type: application/json" \
+  --data @<(python -c 'import json, pathlib; print(json.loads(pathlib.Path("projects/api/events/config-post.apigw.json").read_text())["body"])')
+
+curl -sS "http://127.0.0.1:3000/configs/<id>"
+
+curl -sS -X PATCH "http://127.0.0.1:3000/configs/<id>" \
+  -H "content-type: application/json" \
+  -d '{"headerMessage":"patched"}'
+
+curl -sS -X DELETE "http://127.0.0.1:3000/configs/<id>"
+
+curl -sS "http://127.0.0.1:3000/configs"
+```
+
 ### Working in a Lambda Directory
 
 ```bash
 # Use tasks from the repo root:
 task api:format            # Format all code
 task api:lint:lambda config-post  # Lint specific Lambda
+task api:lint:lambda config-get   # Lint specific Lambda
 
 # Or use uv directly if needed:
 cd projects/api/config-post
@@ -129,9 +164,61 @@ Package and deploy Lambda functions using tasks:
 ```bash
 task api:package:config-post  # Build Lambda zip
 task api:deploy:config-post   # Deploy to AWS
+task api:package:config-get   # Build Lambda zip
+task api:deploy:config-get    # Deploy to AWS
+task api:package:config-delete
+task api:deploy:config-delete
+task api:package:config-list
+task api:deploy:config-list
+task api:package:config-patch
+task api:deploy:config-patch
+
+# Package + deploy all API lambdas
+task api:deploy
 ```
 
 These tasks handle dependency installation in a Lambda-compatible Linux container.
+
+## E2E Testing
+
+E2E tests use **pytest + httpx** and can run against either the local Flask server or deployed API Gateway.
+
+### Running Tests
+
+```bash
+# Test against local Flask server (default, requires 'task up' to be running)
+task api:e2e
+
+# Explicitly test against local server
+task api:e2e:local
+
+# Test against deployed API Gateway (requires API_BASE_URL and API_KEY env vars)
+API_BASE_URL=https://api.example.com/dev API_KEY=your-key task api:e2e:deployed
+```
+
+### Test Configuration
+
+Tests are configured via environment variables:
+
+- **`API_BASE_URL`**: Base URL for the API (default: `http://127.0.0.1:3000`)
+- **`API_KEY`**: API key for deployed API Gateway (not needed for local Flask server)
+
+### Test Structure
+
+```
+tests/
+├── __init__.py
+├── conftest.py          # Shared fixtures (api_client, sample_config, etc.)
+└── test_configs_e2e.py # E2E tests for /configs endpoints
+```
+
+### Debugging Tests
+
+Tests can be debugged in VS Code:
+
+1. Set breakpoints in test files
+2. Use the Python debugger to run `pytest tests/`
+3. Or use the VS Code test runner (if configured)
 
 ## uv Commands Reference
 

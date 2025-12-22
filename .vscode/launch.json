@@ -2,17 +2,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to SAM (config-post)",
+      "name": "Attach to Local API (Flask)",
       "type": "python",
       "request": "attach",
-      "connect": {
-        "host": "127.0.0.1",
-        "port": 5890
-      },
+      "host": "127.0.0.1",
+      "port": 5890,
       "pathMappings": [
         {
-          "localRoot": "${workspaceFolder}/projects/api/config-post",
-          "remoteRoot": "/var/task"
+          "localRoot": "${workspaceFolder}/projects/api",
+          "remoteRoot": "/workspace/projects/api"
         }
       ],
       "justMyCode": true

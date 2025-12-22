@@ -1,12 +1,12 @@
-# DynamoDB table for playlist configs (versioned)
+# DynamoDB table for playlist configs
 
 resource "aws_dynamodb_table" "configs" {
   name         = "${var.project}-${var.environment}-configs"
   billing_mode = "PAY_PER_REQUEST" # On-demand pricing
-  hash_key     = "version"
+  hash_key     = "id"
 
   attribute {
-    name = "version"
+    name = "id"
     type = "S"
   }
 
@@ -35,7 +35,10 @@ resource "aws_iam_role_policy" "lambda_read_write_dynamodb_configs" {
         Action = [
           "dynamodb:GetItem",
           "dynamodb:Query",
-          "dynamodb:PutItem"
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Scan"
         ]
         Resource = "${aws_dynamodb_table.configs.arn}"
       }

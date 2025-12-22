@@ -1,6 +1,6 @@
-# Config Post Lambda Handler
+# Config Get Lambda Handler
 
-Lambda function for the `POST /configs` API Gateway endpoint. Reads playlist configs from DynamoDB.
+Lambda function for the `GET /configs/{id}` API Gateway endpoint. Retrieves a saved playlist config from DynamoDB by `id`.
 
 ## Deployment
 
@@ -8,14 +8,10 @@ This Lambda is deployed independently from the infrastructure.
 
 After Terraform creates the function, the recommended flow is:
 
-- Build a Lambda-compatible zip using the repo task (installs deps from `pyproject.toml` in a Lambda Linux container):
-
 ```bash
-task api:package:config-post
-task api:deploy:config-post
+task api:package:config-get
+task api:deploy:config-get
 ```
-
-Or use the AWS Console to upload the zip file.
 
 ## Environment Variables
 
@@ -23,16 +19,6 @@ The Lambda expects:
 
 - `CONFIG_TABLE_NAME`: DynamoDB table name (set by Terraform)
 - `DYNAMODB_ENDPOINT_URL` (optional): Override DynamoDB endpoint for local dev (e.g. DynamoDB Local)
-
-## Testing
-
-Test locally with a mock event:
-
-```python
-event = {}
-result = handler(event, None)
-print(result)
-```
 
 ## Local run/debug (Flask via Docker Compose)
 

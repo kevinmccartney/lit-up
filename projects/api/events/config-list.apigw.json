@@ -1,0 +1,20 @@
+{
+  "resource": "/configs",
+  "path": "/configs",
+  "httpMethod": "GET",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "multiValueHeaders": {},
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": null,
+  "stageVariables": null,
+  "requestContext": {
+    "resourcePath": "/configs",
+    "httpMethod": "GET",
+    "path": "/dev/configs"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}
