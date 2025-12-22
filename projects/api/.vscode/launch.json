@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Python: E2E Tests (Local)",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "pytest",
       "args": ["tests/", "-v", "-s"],
@@ -15,7 +15,7 @@
     },
     {
       "name": "Python: E2E Tests (Deployed)",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "pytest",
       "args": ["tests/", "-v", "-s"],

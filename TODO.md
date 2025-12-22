@@ -35,12 +35,12 @@
   - [x] tf format
 - [x] chore: add instructions file
 - [x] refactor: clean up repo in general (with the help of cursor 🤖)
-- [ ] feat: build config REST resources
+- [x] feat: build config REST resources
   - [x] API key
   - [x] POST
   - [x] GET
-  - [ ] GET ALL
-  - [ ] DELETE
+  - [x] GET ALL
+  - [x] DELETE
 - [x] chore: dev env
   - [x] Should I just set up debug by default?
   - [x] Hoist docker compose to monorepo root
@@ -48,6 +48,13 @@
   - [x] Do I really need UV?
   - [x] Update READMEs to remove consider adding scripts
 - [ ] feat: build songs REST resources
+  - [x] POST
+  - [x] GET
+  - [x] DELETE
+  - [x] PATCH
+  - [x] GET ALL
+- [ ] refactor: common models for rest resources
+- [ ] infra: create `song_processing_events` queue
 - [ ] infra: build file storage for converted songs
 - [ ] feat: build playlist REST resources
 - [ ] chore: host OpenAPI spec

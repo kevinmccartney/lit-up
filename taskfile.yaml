@@ -268,7 +268,7 @@ tasks:
   api:package:config-post:
     desc: 'Package the config-post Lambda function into a deployment zip using Docker'
     dir: .
-    cmd: scripts/tasks/lambda_package.sh config-post "${DOCKER_PLATFORM:-linux/amd64}"
+    cmd: scripts/tasks/lambda_package.sh config-post "${DOCKER_PLATFORM:-linux/arm64}"
   api:deploy:config-post:
     desc: 'Deploy the config-post Lambda function to AWS'
     dir: .
@@ -276,7 +276,7 @@ tasks:
   api:package:config-get:
     desc: 'Package the config-get Lambda function into a deployment zip using Docker'
     dir: .
-    cmd: scripts/tasks/lambda_package.sh config-get "${DOCKER_PLATFORM:-linux/amd64}"
+    cmd: scripts/tasks/lambda_package.sh config-get "${DOCKER_PLATFORM:-linux/arm64}"
   api:deploy:config-get:
     desc: 'Deploy the config-get Lambda function to AWS'
     dir: .
@@ -284,7 +284,7 @@ tasks:
   api:package:config-delete:
     desc: 'Package the config-delete Lambda function into a deployment zip using Docker'
     dir: .
-    cmd: scripts/tasks/lambda_package.sh config-delete "${DOCKER_PLATFORM:-linux/amd64}"
+    cmd: scripts/tasks/lambda_package.sh config-delete "${DOCKER_PLATFORM:-linux/arm64}"
   api:deploy:config-delete:
     desc: 'Deploy the config-delete Lambda function to AWS'
     dir: .
@@ -292,7 +292,7 @@ tasks:
   api:package:config-list:
     desc: 'Package the config-list Lambda function into a deployment zip using Docker'
     dir: .
-    cmd: scripts/tasks/lambda_package.sh config-list "${DOCKER_PLATFORM:-linux/amd64}"
+    cmd: scripts/tasks/lambda_package.sh config-list "${DOCKER_PLATFORM:-linux/arm64}"
   api:deploy:config-list:
     desc: 'Deploy the config-list Lambda function to AWS'
     dir: .
@@ -300,11 +300,51 @@ tasks:
   api:package:config-patch:
     desc: 'Package the config-patch Lambda function into a deployment zip using Docker'
     dir: .
-    cmd: scripts/tasks/lambda_package.sh config-patch "${DOCKER_PLATFORM:-linux/amd64}"
+    cmd: scripts/tasks/lambda_package.sh config-patch "${DOCKER_PLATFORM:-linux/arm64}"
   api:deploy:config-patch:
     desc: 'Deploy the config-patch Lambda function to AWS'
     dir: .
     cmd: scripts/tasks/lambda_deploy.sh config-patch "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:song-post:
+    desc: 'Package the song-post Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh song-post "${DOCKER_PLATFORM:-linux/arm64}"
+  api:deploy:song-post:
+    desc: 'Deploy the song-post Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh song-post "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:song-get:
+    desc: 'Package the song-get Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh song-get "${DOCKER_PLATFORM:-linux/arm64}"
+  api:deploy:song-get:
+    desc: 'Deploy the song-get Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh song-get "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:song-delete:
+    desc: 'Package the song-delete Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh song-delete "${DOCKER_PLATFORM:-linux/arm64}"
+  api:deploy:song-delete:
+    desc: 'Deploy the song-delete Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh song-delete "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:song-patch:
+    desc: 'Package the song-patch Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh song-patch "${DOCKER_PLATFORM:-linux/arm64}"
+  api:deploy:song-patch:
+    desc: 'Deploy the song-patch Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh song-patch "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
+  api:package:song-list:
+    desc: 'Package the song-list Lambda function into a deployment zip using Docker'
+    dir: .
+    cmd: scripts/tasks/lambda_package.sh song-list "${DOCKER_PLATFORM:-linux/arm64}"
+  api:deploy:song-list:
+    desc: 'Deploy the song-list Lambda function to AWS'
+    dir: .
+    cmd: scripts/tasks/lambda_deploy.sh song-list "${PROJECT:-lit-up}" "${ENVIRONMENT:-dev}" "${AWS_REGION:-us-east-1}"
   api:deploy:
     desc: 'Package and deploy all API lambdas (config-post/get/delete/list/patch)'
     dir: .
@@ -319,6 +359,16 @@ tasks:
       - task: api:deploy:config-list
       - task: api:package:config-patch
       - task: api:deploy:config-patch
+      - task: api:package:song-post
+      - task: api:deploy:song-post
+      - task: api:package:song-get
+      - task: api:deploy:song-get
+      - task: api:package:song-delete
+      - task: api:deploy:song-delete
+      - task: api:package:song-patch
+      - task: api:deploy:song-patch
+      - task: api:package:song-list
+      - task: api:deploy:song-list
   api:e2e:
     desc: 'Run API E2E tests against local Flask server (default) or deployed API Gateway'
     summary: 'Runs pytest E2E tests. Set API_BASE_URL env var to test against deployed API Gateway (e.g., API_BASE_URL=https://api.example.com/dev task api:test). Set API_KEY env var if testing deployed API Gateway. For local testing, ensure Flask server is running via "task up".'

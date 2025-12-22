@@ -76,7 +76,7 @@ resource "aws_lambda_function" "config_post_function" {
 
   environment {
     variables = {
-      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
     }
   }
 
@@ -109,7 +109,7 @@ resource "aws_lambda_function" "config_get_function" {
 
   environment {
     variables = {
-      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
     }
   }
 
@@ -142,7 +142,7 @@ resource "aws_lambda_function" "config_delete_function" {
 
   environment {
     variables = {
-      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
     }
   }
 
@@ -175,7 +175,7 @@ resource "aws_lambda_function" "config_list_function" {
 
   environment {
     variables = {
-      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
     }
   }
 
@@ -195,6 +195,51 @@ data "archive_file" "config_patch_lambda_zip" {
   }
 }
 
+data "archive_file" "song_post_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-song-post-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+data "archive_file" "song_get_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-song-get-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+data "archive_file" "song_delete_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-song-delete-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+data "archive_file" "song_patch_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-song-patch-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
+data "archive_file" "song_list_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda-song-list-placeholder.zip"
+  source {
+    content  = "# Placeholder - Lambda code deployed separately from api project"
+    filename = "placeholder.txt"
+  }
+}
+
 resource "aws_lambda_function" "config_patch_function" {
   filename         = data.archive_file.config_patch_lambda_zip.output_path
   function_name    = "${var.project}-${var.environment}-config-patch"
@@ -208,12 +253,127 @@ resource "aws_lambda_function" "config_patch_function" {
 
   environment {
     variables = {
-      CONFIG_TABLE_NAME = aws_dynamodb_table.configs.name
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
     }
   }
 
   tags = {
     Name        = "${var.project}-${var.environment}-config-patch"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function" "song_post_function" {
+  filename         = data.archive_file.song_post_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-song-post"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.song_post_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-song-post"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function" "song_get_function" {
+  filename         = data.archive_file.song_get_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-song-get"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.song_get_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-song-get"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function" "song_delete_function" {
+  filename         = data.archive_file.song_delete_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-song-delete"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.song_delete_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-song-delete"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function" "song_patch_function" {
+  filename         = data.archive_file.song_patch_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-song-patch"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.song_patch_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-song-patch"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function" "song_list_function" {
+  filename         = data.archive_file.song_list_lambda_zip.output_path
+  function_name    = "${var.project}-${var.environment}-song-list"
+  role             = aws_iam_role.lambda_execute_role.arn
+  handler          = "handler.handler"
+  source_code_hash = data.archive_file.song_list_lambda_zip.output_base64sha256
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      MUSIC_TABLE_NAME = aws_dynamodb_table.music.name
+    }
+  }
+
+  tags = {
+    Name        = "${var.project}-${var.environment}-song-list"
     Environment = var.environment
   }
 }
@@ -274,6 +434,18 @@ resource "aws_api_gateway_resource" "config_id" {
   path_part   = "{id}"
 }
 
+resource "aws_api_gateway_resource" "songs" {
+  rest_api_id = aws_api_gateway_rest_api.lit_up_api.id
+  parent_id   = aws_api_gateway_rest_api.lit_up_api.root_resource_id
+  path_part   = "songs"
+}
+
+resource "aws_api_gateway_resource" "song_id" {
+  rest_api_id = aws_api_gateway_rest_api.lit_up_api.id
+  parent_id   = aws_api_gateway_resource.songs.id
+  path_part   = "{id}"
+}
+
 resource "aws_api_gateway_method" "healthz_get" {
   rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
   resource_id      = aws_api_gateway_resource.healthz.id
@@ -323,6 +495,55 @@ resource "aws_api_gateway_method" "config_list" {
 resource "aws_api_gateway_method" "config_patch" {
   rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
   resource_id      = aws_api_gateway_resource.config_id.id
+  http_method      = "PATCH"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+resource "aws_api_gateway_method" "song_post" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.songs.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "song_list" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.songs.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "song_get" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.song_id.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+resource "aws_api_gateway_method" "song_delete" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.song_id.id
+  http_method      = "DELETE"
+  authorization    = "NONE"
+  api_key_required = true
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+resource "aws_api_gateway_method" "song_patch" {
+  rest_api_id      = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id      = aws_api_gateway_resource.song_id.id
   http_method      = "PATCH"
   authorization    = "NONE"
   api_key_required = true
@@ -385,6 +606,51 @@ resource "aws_api_gateway_integration" "config_patch" {
   uri                     = aws_lambda_function.config_patch_function.invoke_arn
 }
 
+resource "aws_api_gateway_integration" "song_post" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.songs.id
+  http_method             = aws_api_gateway_method.song_post.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.song_post_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "song_list" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.songs.id
+  http_method             = aws_api_gateway_method.song_list.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.song_list_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "song_get" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.song_id.id
+  http_method             = aws_api_gateway_method.song_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.song_get_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "song_delete" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.song_id.id
+  http_method             = aws_api_gateway_method.song_delete.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.song_delete_function.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "song_patch" {
+  rest_api_id             = aws_api_gateway_rest_api.lit_up_api.id
+  resource_id             = aws_api_gateway_resource.song_id.id
+  http_method             = aws_api_gateway_method.song_patch.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.song_patch_function.invoke_arn
+}
+
 resource "aws_lambda_permission" "allow_apigw_invoke_healthz" {
   statement_id  = "AllowExecutionFromApiGatewayHealthz"
   action        = "lambda:InvokeFunction"
@@ -433,6 +699,46 @@ resource "aws_lambda_permission" "allow_apigw_invoke_config_patch" {
   source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/PATCH/configs/*"
 }
 
+resource "aws_lambda_permission" "allow_apigw_invoke_song_post" {
+  statement_id  = "AllowExecutionFromApiGatewaySongPost"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.song_post_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/POST/songs"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_song_get" {
+  statement_id  = "AllowExecutionFromApiGatewaySongGet"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.song_get_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/GET/songs/*"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_song_delete" {
+  statement_id  = "AllowExecutionFromApiGatewaySongDelete"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.song_delete_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/DELETE/songs/*"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_song_patch" {
+  statement_id  = "AllowExecutionFromApiGatewaySongPatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.song_patch_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/PATCH/songs/*"
+}
+
+resource "aws_lambda_permission" "allow_apigw_invoke_song_list" {
+  statement_id  = "AllowExecutionFromApiGatewaySongList"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.song_list_function.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.lit_up_api.execution_arn}/*/GET/songs"
+}
+
 resource "aws_api_gateway_deployment" "lit_up" {
   rest_api_id = aws_api_gateway_rest_api.lit_up_api.id
 
@@ -460,6 +766,23 @@ resource "aws_api_gateway_deployment" "lit_up" {
       aws_api_gateway_method.config_patch.id,
       aws_api_gateway_method.config_patch.api_key_required,
       aws_api_gateway_integration.config_patch.id,
+      aws_api_gateway_resource.songs.id,
+      aws_api_gateway_method.song_post.id,
+      aws_api_gateway_method.song_post.api_key_required,
+      aws_api_gateway_integration.song_post.id,
+      aws_api_gateway_method.song_list.id,
+      aws_api_gateway_method.song_list.api_key_required,
+      aws_api_gateway_integration.song_list.id,
+      aws_api_gateway_resource.song_id.id,
+      aws_api_gateway_method.song_get.id,
+      aws_api_gateway_method.song_get.api_key_required,
+      aws_api_gateway_integration.song_get.id,
+      aws_api_gateway_method.song_delete.id,
+      aws_api_gateway_method.song_delete.api_key_required,
+      aws_api_gateway_integration.song_delete.id,
+      aws_api_gateway_method.song_patch.id,
+      aws_api_gateway_method.song_patch.api_key_required,
+      aws_api_gateway_integration.song_patch.id,
     ]))
   }
 

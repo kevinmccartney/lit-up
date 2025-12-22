@@ -1,8 +1,14 @@
+"""
+Lambda handler for PATCH /songs/{id} endpoint.
+Updates allowed song fields in the DynamoDB music table.
+"""
+
 from __future__ import annotations
 
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -23,11 +29,19 @@ dynamodb = (
     else _boto_session.resource("dynamodb")
 )
 MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
-CONFIG_PK_VALUE = "CONFIG"
+SONG_PK_VALUE = "SONG"
 
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
+}
+
+# Fields that can be updated via PATCH
+ALLOWED_FIELDS = {
+    "audio_origin_url": "audioOriginUrl",
+    "album_art_origin_url": "albumArtOriginUrl",
+    "artist": "artist",
+    "title": "title",
 }
 
 
@@ -55,26 +69,24 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
-def _config_key(config_id: str) -> dict[str, str]:
-    """Build the composite key for a config item."""
-    return {"PK": CONFIG_PK_VALUE, "SK": f"CONFIG#{config_id}"}
+def _song_key(song_id: str) -> dict[str, str]:
+    """Build the composite key for a song item."""
+    return {"PK": SONG_PK_VALUE, "SK": f"SONG#{song_id}"}
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    """Patch allowed fields of a song."""
     try:
         path_params = event.get("pathParameters") or {}
         query_params = event.get("queryStringParameters") or {}
-        config_id = path_params.get("id") or query_params.get("id")
+        song_id = path_params.get("id") or query_params.get("id")
 
-        if not config_id:
+        if not song_id:
             return _create_response(
                 400,
                 {
                     "error": "Bad request",
-                    "message": (
-                        "Config id is required "
-                        "(path /configs/{id} or query param ?id=...)"
-                    ),
+                    "message": "Song id is required (path /songs/{id} or query param ?id=...)",  # noqa: E501 pylint: disable=line-too-long
                 },
             )
 
@@ -96,55 +108,82 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if not isinstance(body, dict):
             return _create_response(
                 400,
-                {"error": "Bad request", "message": "Config payload must be an object"},
+                {"error": "Bad request", "message": "Payload must be an object"},
             )
 
-        table = dynamodb.Table(MUSIC_TABLE_NAME)
+        update_fields: dict[str, Any] = {}
+        for api_name, db_name in ALLOWED_FIELDS.items():
+            if api_name in body:
+                update_fields[db_name] = body[api_name]
 
-        # Ensure item exists before updating
-        existing = table.get_item(Key=_config_key(config_id)).get("Item")
-        if not existing:
+        if not update_fields:
             return _create_response(
-                404,
+                400,
                 {
-                    "error": "Not found",
-                    "message": "Config not found",
-                    "id": config_id,
+                    "error": "Bad request",
+                    "message": "No patchable fields provided",
+                    "allowed_fields": list(ALLOWED_FIELDS.keys()),
                 },
             )
 
-        # Replace the config with provided payload
-        # (PATCH semantics: client sends fields to replace)
-        update_resp = table.update_item(
-            Key=_config_key(config_id),
-            UpdateExpression="SET #c = :c",
-            ExpressionAttributeNames={"#c": "config"},
-            ExpressionAttributeValues={":c": body},
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        table = dynamodb.Table(MUSIC_TABLE_NAME)
+        # Ensure item exists
+        existing = table.get_item(Key=_song_key(song_id)).get("Item")
+        if not existing:
+            return _create_response(
+                404,
+                {"error": "Not found", "message": "Song not found", "id": song_id},
+            )
+
+        # Build update expression
+        expr_names = {"#updatedAt": "updatedAt"}
+        expr_values = {":updatedAt": now_iso}
+        set_clauses = ["#updatedAt = :updatedAt"]
+
+        for idx, (db_name, value) in enumerate(update_fields.items()):
+            name_key = f"#f{idx}"
+            value_key = f":v{idx}"
+            expr_names[name_key] = db_name
+            expr_values[value_key] = value
+            set_clauses.append(f"{name_key} = {value_key}")
+
+        update_expr = "SET " + ", ".join(set_clauses)
+
+        resp = table.update_item(
+            Key=_song_key(song_id),
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values,
             ReturnValues="ALL_NEW",
         )
 
-        updated_item = update_resp.get("Attributes", {})
-        updated_config = _to_jsonable(updated_item.get("config"))
-
+        updated_item = resp.get("Attributes", {})
+        updated_json = _to_jsonable(updated_item)
         return _create_response(
             200,
             {
-                "id": config_id,
-                "config": updated_config,
+                "id": song_id,
+                "song": {
+                    k: v
+                    for k, v in updated_json.items()
+                    if k not in {"PK", "SK", "type"}
+                },
             },
         )
 
     except ClientError:
-        logger.exception("DynamoDB error while patching config")
+        logger.exception("DynamoDB error while patching song")
         return _create_response(
             500,
             {
                 "error": "Internal server error",
-                "message": "Failed to update config in database",
+                "message": "Failed to update song in database",
             },
         )
     except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected error while patching config")
+        logger.exception("Unexpected error while patching song")
         return _create_response(
             500,
             {

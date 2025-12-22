@@ -11,7 +11,10 @@ class TestConfigsE2E:
     """End-to-end tests for config CRUD operations."""
 
     def test_post_config_creates_new_config(
-        self, api_client: httpx.Client, sample_config: dict
+        self,
+        api_client: httpx.Client,
+        sample_config: dict,
+        config_cleanup: list[str],
     ) -> None:
         """Test POST /configs creates a new config and returns an ID."""
         response = api_client.post("/configs", json=sample_config)
@@ -25,6 +28,7 @@ class TestConfigsE2E:
         assert len(data["id"]) > 0, "ID should not be empty"
         assert "config" in data, "Response should include 'config'"
         assert data["config"] == sample_config, "Returned config should match request"
+        config_cleanup.append(data["id"])
 
     def test_get_config_retrieves_existing_config(
         self, api_client: httpx.Client, created_config_id: str, sample_config: dict

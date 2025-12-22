@@ -34,7 +34,8 @@ dynamodb = (
     if DYNAMODB_ENDPOINT_URL
     else _boto_session.resource("dynamodb")
 )
-CONFIG_TABLE_NAME = os.environ.get("CONFIG_TABLE_NAME", "lit-up-dev-configs")
+MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
+CONFIG_PK_VALUE = "CONFIG"
 
 # Common response headers
 JSON_HEADERS = {
@@ -94,6 +95,11 @@ class AppConfig(BaseModel):
     buildDatetime: str
     buildHash: str
     concatenatedPlaylist: ConcatenatedPlaylist
+
+
+def _config_key(config_id: str) -> dict[str, str]:
+    """Build the composite key for a config item."""
+    return {"PK": CONFIG_PK_VALUE, "SK": f"CONFIG#{config_id}"}
 
 
 def _create_response(
@@ -198,14 +204,16 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         config_dict = config.model_dump()
 
         # Write config to DynamoDB
-        table = dynamodb.Table(CONFIG_TABLE_NAME)
+        table = dynamodb.Table(MUSIC_TABLE_NAME)
         item = {
+            **_config_key(config_id),
             "id": config_id,
+            "type": "CONFIG",
             "config": config_dict,  # Store as JSON dict (DynamoDB will handle it)
         }
         table.put_item(Item=item)
 
-        logger.info("Saved config id=%s table=%s", config_id, CONFIG_TABLE_NAME)
+        logger.info("Saved config id=%s table=%s", config_id, MUSIC_TABLE_NAME)
 
         # Convert back to JSON-serializable format (floats) for response
         # Use model_dump(mode='json') to apply field serializers (Decimal -> float)

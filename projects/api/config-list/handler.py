@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,8 @@ dynamodb = (
     if DYNAMODB_ENDPOINT_URL
     else _boto_session.resource("dynamodb")
 )
-CONFIG_TABLE_NAME = os.environ.get("CONFIG_TABLE_NAME", "lit-up-dev-configs")
+MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
+CONFIG_PK_VALUE = "CONFIG"
 
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
@@ -54,11 +56,19 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
-def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+def handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
-        table = dynamodb.Table(CONFIG_TABLE_NAME)
-        resp = table.scan()
+        table = dynamodb.Table(MUSIC_TABLE_NAME)
+        resp = table.query(
+            KeyConditionExpression=Key("PK").eq(CONFIG_PK_VALUE),
+        )
         items = resp.get("Items", [])
+        while "LastEvaluatedKey" in resp:
+            resp = table.query(
+                KeyConditionExpression=Key("PK").eq(CONFIG_PK_VALUE),
+                ExclusiveStartKey=resp["LastEvaluatedKey"],
+            )
+            items.extend(resp.get("Items", []))
         configs = [
             {"id": item.get("id"), "config": _to_jsonable(item.get("config"))}
             for item in items

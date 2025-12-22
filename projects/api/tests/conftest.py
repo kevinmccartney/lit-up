@@ -141,3 +141,46 @@ def created_config_id(api_client: httpx.Client, sample_config: dict) -> Generato
         api_client.delete(f"/configs/{config_id}")
     except Exception:  # noqa: BLE001
         pass  # Best effort cleanup
+
+
+@pytest.fixture
+def config_cleanup(api_client: httpx.Client) -> Generator[list[str], None, None]:
+    """
+    Collect config IDs created during a test and delete them afterwards.
+    """
+    created: list[str] = []
+    try:
+        yield created
+    finally:
+        for config_id in created:
+            try:
+                api_client.delete(f"/configs/{config_id}")
+            except Exception:  # noqa: BLE001
+                pass
+
+
+@pytest.fixture
+def sample_song_payload() -> dict[str, str]:
+    """Sample song payload for creation."""
+    return {
+        "audio_origin_url": "https://youtube.com/watch?v=dQw4w9WgXcQ",
+        "artist": "E2E Artist",
+        "title": "E2E Title",
+        "album_art_origin_url": "https://images.example.com/song-123.jpg",
+    }
+
+
+@pytest.fixture
+def song_cleanup(api_client: httpx.Client) -> Generator[list[str], None, None]:
+    """
+    Collect song IDs created during a test and delete them afterwards.
+    """
+    created: list[str] = []
+    try:
+        yield created
+    finally:
+        for song_id in created:
+            try:
+                api_client.delete(f"/songs/{song_id}")
+            except Exception:  # noqa: BLE001
+                pass

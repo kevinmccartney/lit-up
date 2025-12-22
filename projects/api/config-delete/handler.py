@@ -22,7 +22,8 @@ dynamodb = (
     if DYNAMODB_ENDPOINT_URL
     else _boto_session.resource("dynamodb")
 )
-CONFIG_TABLE_NAME = os.environ.get("CONFIG_TABLE_NAME", "lit-up-dev-configs")
+MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
+CONFIG_PK_VALUE = "CONFIG"
 
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
@@ -54,6 +55,11 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
+def _config_key(config_id: str) -> dict[str, str]:
+    """Build the composite key for a config item."""
+    return {"PK": CONFIG_PK_VALUE, "SK": f"CONFIG#{config_id}"}
+
+
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         path_params = event.get("pathParameters") or {}
@@ -72,8 +78,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 },
             )
 
-        table = dynamodb.Table(CONFIG_TABLE_NAME)
-        resp = table.delete_item(Key={"id": config_id}, ReturnValues="ALL_OLD")
+        table = dynamodb.Table(MUSIC_TABLE_NAME)
+        resp = table.delete_item(Key=_config_key(config_id), ReturnValues="ALL_OLD")
         deleted_item = resp.get("Attributes")
 
         if not deleted_item:

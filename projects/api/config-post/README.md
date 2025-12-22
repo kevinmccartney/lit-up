@@ -21,18 +21,8 @@ Or use the AWS Console to upload the zip file.
 
 The Lambda expects:
 
-- `CONFIG_TABLE_NAME`: DynamoDB table name (set by Terraform)
+- `MUSIC_TABLE_NAME`: DynamoDB single-table name (set by Terraform)
 - `DYNAMODB_ENDPOINT_URL` (optional): Override DynamoDB endpoint for local dev (e.g. DynamoDB Local)
-
-## Testing
-
-Test locally with a mock event:
-
-```python
-event = {}
-result = handler(event, None)
-print(result)
-```
 
 ## Local run/debug (Flask via Docker Compose)
 

@@ -29,6 +29,11 @@ config_delete_handler = _load_handler(
 )
 config_list_handler = _load_handler("config_list_handler", "config-list/handler.py")
 config_patch_handler = _load_handler("config_patch_handler", "config-patch/handler.py")
+song_post_handler = _load_handler("song_post_handler", "song-post/handler.py")
+song_get_handler = _load_handler("song_get_handler", "song-get/handler.py")
+song_delete_handler = _load_handler("song_delete_handler", "song-delete/handler.py")
+song_patch_handler = _load_handler("song_patch_handler", "song-patch/handler.py")
+song_list_handler = _load_handler("song_list_handler", "song-list/handler.py")
 
 
 app = Flask(__name__)
@@ -104,6 +109,41 @@ def list_configs() -> Response:
 def patch_config(config_id: str) -> Response:
     event = _lambda_event(request, path_params={"id": config_id})
     result = config_patch_handler(event, None)
+    return _to_flask_response(result)
+
+
+@app.post("/songs")
+def post_song() -> Response:
+    event = _lambda_event(request)
+    result = song_post_handler(event, None)
+    return _to_flask_response(result)
+
+
+@app.get("/songs/<song_id>")
+def get_song(song_id: str) -> Response:
+    event = _lambda_event(request, path_params={"id": song_id})
+    result = song_get_handler(event, None)
+    return _to_flask_response(result)
+
+
+@app.delete("/songs/<song_id>")
+def delete_song(song_id: str) -> Response:
+    event = _lambda_event(request, path_params={"id": song_id})
+    result = song_delete_handler(event, None)
+    return _to_flask_response(result)
+
+
+@app.patch("/songs/<song_id>")
+def patch_song(song_id: str) -> Response:
+    event = _lambda_event(request, path_params={"id": song_id})
+    result = song_patch_handler(event, None)
+    return _to_flask_response(result)
+
+
+@app.get("/songs")
+def list_songs() -> Response:
+    event = _lambda_event(request)
+    result = song_list_handler(event, None)
     return _to_flask_response(result)
 
 

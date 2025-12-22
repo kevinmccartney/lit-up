@@ -11,7 +11,7 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
-      CONFIG_TABLE_NAME: lit-up-dev-configs
+      MUSIC_TABLE_NAME: lit-up-dev-music
     ports:
       - '3000:3000'
       - '5890:5890'

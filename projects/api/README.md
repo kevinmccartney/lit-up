@@ -205,7 +205,7 @@ Tests are configured via environment variables:
 
 ### Test Structure
 
-```
+```text
 tests/
 ├── __init__.py
 ├── conftest.py          # Shared fixtures (api_client, sample_config, etc.)

@@ -1,13 +1,21 @@
+"""
+Lambda handler for POST /songs endpoint.
+Creates a song record in the DynamoDB music table.
+"""
+
 from __future__ import annotations
 
 import json
 import logging
 import os
+import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Annotated, Any
 
 import boto3
 from botocore.exceptions import ClientError
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
@@ -23,12 +31,21 @@ dynamodb = (
     else _boto_session.resource("dynamodb")
 )
 MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
-CONFIG_PK_VALUE = "CONFIG"
+SONG_PK_VALUE = "SONG"
 
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
 }
+
+
+class SongCreate(BaseModel):
+    """Song payload for creation (only user-supplied fields)."""
+
+    audio_origin_url: Annotated[str, Field(min_length=1)]
+    album_art_origin_url: Annotated[str, Field(min_length=1)]
+    artist: Annotated[str, Field(min_length=1)]
+    title: Annotated[str, Field(min_length=1)]
 
 
 def _create_response(
@@ -55,31 +72,16 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
-def _config_key(config_id: str) -> dict[str, str]:
-    """Build the composite key for a config item."""
-    return {"PK": CONFIG_PK_VALUE, "SK": f"CONFIG#{config_id}"}
+def _song_key(song_id: str) -> dict[str, str]:
+    """Build the composite key for a song item."""
+    return {"PK": SONG_PK_VALUE, "SK": f"SONG#{song_id}"}
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    """Create a song record."""
     try:
-        path_params = event.get("pathParameters") or {}
-        query_params = event.get("queryStringParameters") or {}
-        config_id = path_params.get("id") or query_params.get("id")
-
-        if not config_id:
-            return _create_response(
-                400,
-                {
-                    "error": "Bad request",
-                    "message": (
-                        "Config id is required "
-                        "(path /configs/{id} or query param ?id=...)"
-                    ),
-                },
-            )
-
         raw_body = event.get("body")
-        if raw_body in (None, ""):
+        if not raw_body:
             return _create_response(
                 400,
                 {"error": "Bad request", "message": "Request body is required"},
@@ -93,58 +95,67 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 {"error": "Bad request", "message": "Request body must be JSON"},
             )
 
-        if not isinstance(body, dict):
+        try:
+            song_payload = SongCreate.model_validate(body or {})
+        except ValidationError as e:
+            logger.warning("Validation error: %s", e)
             return _create_response(
                 400,
-                {"error": "Bad request", "message": "Config payload must be an object"},
-            )
-
-        table = dynamodb.Table(MUSIC_TABLE_NAME)
-
-        # Ensure item exists before updating
-        existing = table.get_item(Key=_config_key(config_id)).get("Item")
-        if not existing:
-            return _create_response(
-                404,
                 {
-                    "error": "Not found",
-                    "message": "Config not found",
-                    "id": config_id,
+                    "error": "Validation error",
+                    "message": "Invalid song structure",
+                    "details": e.errors(),
                 },
             )
 
-        # Replace the config with provided payload
-        # (PATCH semantics: client sends fields to replace)
-        update_resp = table.update_item(
-            Key=_config_key(config_id),
-            UpdateExpression="SET #c = :c",
-            ExpressionAttributeNames={"#c": "config"},
-            ExpressionAttributeValues={":c": body},
-            ReturnValues="ALL_NEW",
+        song_id = str(uuid.uuid4())
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        table = dynamodb.Table(MUSIC_TABLE_NAME)
+        item = {
+            **_song_key(song_id),
+            "id": song_id,
+            "type": "SONG",
+            "audioOriginUrl": song_payload.audio_origin_url,
+            "audioUrl": None,
+            "length": None,
+            "lengthSeconds": None,
+            "artist": song_payload.artist,
+            "title": song_payload.title,
+            "albumArtOriginUrl": song_payload.album_art_origin_url,
+            "albumArtUrl": None,
+            "status": "new",
+            "createdAt": now_iso,
+            "updatedAt": now_iso,
+        }
+
+        table.put_item(
+            Item=item,
+            ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
         )
 
-        updated_item = update_resp.get("Attributes", {})
-        updated_config = _to_jsonable(updated_item.get("config"))
+        response_item = _to_jsonable(item)
+        return _create_response(200, response_item)
 
-        return _create_response(
-            200,
-            {
-                "id": config_id,
-                "config": updated_config,
-            },
-        )
-
-    except ClientError:
-        logger.exception("DynamoDB error while patching config")
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return _create_response(
+                409,
+                {
+                    "error": "Conflict",
+                    "message": "Song with this id already exists",
+                },
+            )
+        logger.exception("DynamoDB error while creating song")
         return _create_response(
             500,
             {
                 "error": "Internal server error",
-                "message": "Failed to update config in database",
+                "message": "Failed to create song in database",
             },
         )
     except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected error while patching config")
+        logger.exception("Unexpected error while creating song")
         return _create_response(
             500,
             {

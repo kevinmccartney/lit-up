@@ -1,7 +1,9 @@
 """
-Lambda handler for GET /config/{id} endpoint.
-Reads a saved playlist config from DynamoDB by id.
+Lambda handler for GET /songs/{id} endpoint.
+Reads a song record from the DynamoDB music table.
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -12,16 +14,9 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
-# CloudWatch captures stdout/stderr; Python logging uses stderr by default.
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
 
-# Initialize DynamoDB client
-#
-# Local development note:
-# - Set DYNAMODB_ENDPOINT_URL to point at DynamoDB Local / LocalStack, e.g.
-#   http://host.docker.internal:8000
-# - Keep it unset in AWS so boto3 uses the real AWS endpoint.
 AWS_REGION = (
     os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 )
@@ -33,9 +28,8 @@ dynamodb = (
     else _boto_session.resource("dynamodb")
 )
 MUSIC_TABLE_NAME = os.environ.get("MUSIC_TABLE_NAME", "lit-up-dev-music")
-CONFIG_PK_VALUE = "CONFIG"
+SONG_PK_VALUE = "SONG"
 
-# Common response headers
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
@@ -66,66 +60,65 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
-def _config_key(config_id: str) -> dict[str, str]:
-    """Build the composite key for a config item."""
-    return {"PK": CONFIG_PK_VALUE, "SK": f"CONFIG#{config_id}"}
+def _song_key(song_id: str) -> dict[str, str]:
+    """Build the composite key for a song item."""
+    return {"PK": SONG_PK_VALUE, "SK": f"SONG#{song_id}"}
+
+
+def _strip_internal_fields(item: dict[str, Any]) -> dict[str, Any]:
+    """Remove internal keys from the item before returning."""
+    return {k: v for k, v in item.items() if k not in {"PK", "SK", "type"}}
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    """
-    Lambda handler for API Gateway proxy integration.
-    Fetches config from DynamoDB.
-    """
+    """Fetch a song by id."""
     try:
         path_params = event.get("pathParameters") or {}
         query_params = event.get("queryStringParameters") or {}
-        config_id = path_params.get("id") or query_params.get("id")
+        song_id = path_params.get("id") or query_params.get("id")
 
-        if not config_id:
+        if not song_id:
             return _create_response(
                 400,
                 {
                     "error": "Bad request",
-                    "message": (
-                        "Config id is required "
-                        "(path /config/{id} or query param ?id=...)"
-                    ),
+                    "message": "Song id is required (path /songs/{id} or query param ?id=...)",  # noqa: E501 pylint: disable=line-too-long
                 },
             )
 
         table = dynamodb.Table(MUSIC_TABLE_NAME)
-        resp = table.get_item(Key=_config_key(config_id))
+        resp = table.get_item(Key=_song_key(song_id))
         item = resp.get("Item")
         if not item:
             return _create_response(
                 404,
                 {
                     "error": "Not found",
-                    "message": "Config not found",
-                    "id": config_id,
+                    "message": "Song not found",
+                    "id": song_id,
                 },
             )
 
-        config = _to_jsonable(item.get("config"))
+        song = _to_jsonable(_strip_internal_fields(item))
         return _create_response(
             200,
             {
-                "id": config_id,
-                "config": config,
+                "id": song_id,
+                "song": song,
             },
         )
 
     except ClientError:
-        logger.exception("DynamoDB error while reading config")
+        logger.exception("DynamoDB error while reading song")
         return _create_response(
             500,
             {
                 "error": "Internal server error",
-                "message": "Failed to read config from database",
+                "message": "Failed to read song from database",
             },
         )
     except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.exception("Unexpected error while reading config")
+        logger.exception("Unexpected error while reading song")
         return _create_response(
             500,
             {
