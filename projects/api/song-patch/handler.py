@@ -5,15 +5,22 @@ Updates allowed song fields in the DynamoDB music table.
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+if TYPE_CHECKING:
+    from models.song import SongPatch
+else:
+    _song_module = importlib.import_module("models.song")
+    SongPatch = _song_module.SongPatch  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
@@ -34,14 +41,6 @@ SONG_PK_VALUE = "SONG"
 JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
-}
-
-# Fields that can be updated via PATCH
-ALLOWED_FIELDS = {
-    "audio_origin_url": "audioOriginUrl",
-    "album_art_origin_url": "albumArtOriginUrl",
-    "artist": "artist",
-    "title": "title",
 }
 
 
@@ -111,10 +110,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 {"error": "Bad request", "message": "Payload must be an object"},
             )
 
-        update_fields: dict[str, Any] = {}
-        for api_name, db_name in ALLOWED_FIELDS.items():
-            if api_name in body:
-                update_fields[db_name] = body[api_name]
+        patch_model = SongPatch.model_validate(body)
+        update_fields = patch_model.to_update_map()
 
         if not update_fields:
             return _create_response(
@@ -122,11 +119,16 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 {
                     "error": "Bad request",
                     "message": "No patchable fields provided",
-                    "allowed_fields": list(ALLOWED_FIELDS.keys()),
+                    "allowed_fields": [
+                        "audio_origin_url",
+                        "album_art_origin_url",
+                        "artist",
+                        "title",
+                    ],
                 },
             )
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         table = dynamodb.Table(MUSIC_TABLE_NAME)
         # Ensure item exists

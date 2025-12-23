@@ -15,6 +15,11 @@ node_modules/
 **/*.pyd
 .Python
 
+# Python build artifacts
+**/*.egg-info/
+**/build/
+**/dist/
+
 # uv
 uv.lock
 **/uv.lock

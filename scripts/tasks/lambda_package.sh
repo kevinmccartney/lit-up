@@ -16,7 +16,7 @@ fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "❌ Docker is not installed or not running"
-  echo "  Docker is required to package native dependencies (like Pydantic) for Lambda"
+  echo "  Docker is required to package native dependencies"
   exit 1
 fi
 
@@ -44,70 +44,71 @@ rm -f "$ZIP_FILE"
 echo "  Copying handler..."
 cp "$LAMBDA_DIR/handler.py" "$PACKAGE_DIR/"
 
-# Use Docker to install dependencies in Lambda-compatible Linux environment
-echo "  Installing runtime dependencies..."
-# Extract dependencies from pyproject.toml
-DEPS=$(python3 -c "import tomllib; f = open('$LAMBDA_DIR/pyproject.toml', 'rb'); data = tomllib.load(f); f.close(); deps = data.get('project', {}).get('dependencies', []); print(' '.join(deps))" 2>/dev/null || echo "")
-HAS_PYDANTIC="0"
-if echo " $DEPS " | grep -Eq "[[:space:]]pydantic([[:space:]]|==|>=|<=|~=|!=|<|>)"; then
-  HAS_PYDANTIC="1"
+# Copy shared models into the package (ensures models/ is present even if installer skips)
+if [ -d "models" ]; then
+  echo "  Copying shared models..."
+  cp -a models "$PACKAGE_DIR/"
 fi
 
-if [ -z "$DEPS" ]; then
-  echo "  ⚠️  No runtime dependencies found (or error reading pyproject.toml)"
-else
-  # Use Docker with Python 3.13 Lambda base image to install dependencies
-  # This ensures we get Linux-compatible wheels for native extensions like pydantic-core
-  # Override entrypoint to use bash instead of Lambda handler
-  docker run --rm \
-    --platform "$DOCKER_PLATFORM" \
-    --entrypoint /bin/bash \
-    -v "$(pwd)/$PACKAGE_DIR:/var/task" \
-    -v "$(pwd)/$LAMBDA_DIR:/lambda-source" \
-    public.ecr.aws/lambda/python:3.13 \
-    -c "set -euo pipefail; pip install --upgrade pip >/dev/null; pip install --target /var/task --no-cache-dir $DEPS >/dev/null; if [ '${HAS_PYDANTIC}' = '1' ]; then PYTHONPATH=/var/task python3 -c 'import pydantic_core._pydantic_core' >/dev/null; fi"
-fi
+# Use Docker to install dependencies in Lambda-compatible Linux environment with uv
+echo "  Installing runtime dependencies and bundling models..."
+docker run --rm \
+  --platform "$DOCKER_PLATFORM" \
+  --entrypoint /bin/bash \
+  -v "$(pwd):/workspace" \
+  -v "$(pwd)/$PACKAGE_DIR:/var/task" \
+  public.ecr.aws/lambda/python:3.13 \
+  -c "
+set -euo pipefail
+cd /workspace
 
-# If this Lambda uses pydantic, verify pydantic-core binary extension exists (this is what Lambda needs)
-if [ "$HAS_PYDANTIC" = "1" ]; then
-  PCORE_SO_COUNT=$(find "$PACKAGE_DIR" -maxdepth 2 -type f -name "_pydantic_core*.so" 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$PCORE_SO_COUNT" -gt 0 ]; then
-    : # ok
+# Ensure tar is available (required by uv installer)
+if ! command -v tar >/dev/null 2>&1; then
+  if command -v dnf >/dev/null 2>&1; then
+    dnf install -y tar gzip >/dev/null 2>&1
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y tar gzip >/dev/null 2>&1
   else
-    echo "  ❌ pydantic_core native extension NOT found in package directory"
-    echo "     This will crash on Lambda with: No module named 'pydantic_core._pydantic_core'"
+    echo 'tar is required but no package manager (dnf/yum) was found' >&2
     exit 1
   fi
 fi
+
+# Install uv (installer puts binaries in $HOME/.local/bin)
+curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
+export PATH="\$HOME/.local/bin:\$HOME/.cargo/bin:\$PATH"
+
+# Copy models source files directly (no need to install as package)
+if [ -d models ] && [ -f models/pyproject.toml ]; then
+  echo '  Copying models source files...'
+  mkdir -p /var/task/models
+  cp models/*.py /var/task/models/
+  echo '  Models copied ✓'
+fi
+
+# Install Lambda package and its dependencies (excluding models, which we copied above)
+uv pip install --target /var/task --no-cache-dir --system ./$LAMBDA_DIR >/dev/null 2>&1
+"
 
 # Create zip file
 echo "  Creating zip archive..."
-cd "$PACKAGE_DIR"
-zip -r "../$LAMBDA_NAME.zip" . -q
-cd ../..
+# Use Python to create zip with files at root (not nested in a folder)
+python3 <<PYTHON_EOF
+import os
+import zipfile
+from pathlib import Path
 
-# Verify zip contents (ensure we produced the right arch)
-if [ "$HAS_PYDANTIC" = "1" ]; then
-  # Accept any pydantic-core native extension; log a warning if arch substring missing
-  PCORE_ENTRY=$(unzip -l "$ZIP_FILE" | grep -E "pydantic_core/_pydantic_core.*\.so" || true)
-  if [ -z "$PCORE_ENTRY" ]; then
-    echo "  ❌ pydantic_core native extension NOT found in zip"
-    echo "     Current DOCKER_PLATFORM='$DOCKER_PLATFORM'."
-    echo "     Try setting DOCKER_PLATFORM=linux/arm64 for arm64 Lambdas, or linux/amd64 for x86_64."
-    exit 1
-  fi
-  EXPECTED_ARCH_HINT="aarch64"
-  if echo "$DOCKER_PLATFORM" | grep -qi "amd64\|x86_64"; then
-    EXPECTED_ARCH_HINT="x86_64"
-  fi
-  if echo "$PCORE_ENTRY" | grep -qi "$EXPECTED_ARCH_HINT"; then
-    : # looks consistent
-  else
-    echo "  ⚠️  Found pydantic_core native extension but arch hint '$EXPECTED_ARCH_HINT' not in filename:"
-    echo "     $PCORE_ENTRY"
-    echo "     Ensure DOCKER_PLATFORM matches your Lambda architecture."
-  fi
-fi
+package_dir = Path("$PACKAGE_DIR")
+zip_path = Path("$ZIP_FILE")
+
+with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    for root, dirs, files in os.walk(package_dir):
+        for file in files:
+            file_path = Path(root) / file
+            # Use relative path from package_dir so files are at root of zip
+            arcname = file_path.relative_to(package_dir)
+            zipf.write(file_path, arcname)
+PYTHON_EOF
 
 # Clean up package directory (keep zip)
 rm -rf "$PACKAGE_DIR"

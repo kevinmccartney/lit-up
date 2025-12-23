@@ -5,17 +5,24 @@ Creates a song record in the DynamoDB music table.
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import ClientError
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
+
+if TYPE_CHECKING:
+    from models.song import SongCreate
+else:
+    _song_module = importlib.import_module("models.song")
+    SongCreate = _song_module.SongCreate  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
@@ -37,15 +44,6 @@ JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
 }
-
-
-class SongCreate(BaseModel):
-    """Song payload for creation (only user-supplied fields)."""
-
-    audio_origin_url: Annotated[str, Field(min_length=1)]
-    album_art_origin_url: Annotated[str, Field(min_length=1)]
-    artist: Annotated[str, Field(min_length=1)]
-    title: Annotated[str, Field(min_length=1)]
 
 
 def _create_response(
@@ -109,7 +107,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             )
 
         song_id = str(uuid.uuid4())
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         table = dynamodb.Table(MUSIC_TABLE_NAME)
         item = {

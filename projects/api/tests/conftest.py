@@ -144,7 +144,7 @@ def created_config_id(api_client: httpx.Client, sample_config: dict) -> Generato
 
 
 @pytest.fixture
-def config_cleanup(api_client: httpx.Client) -> Generator[list[str], None, None]:
+def config_cleanup(api_client: httpx.Client) -> Generator[list[str]]:
     """
     Collect config IDs created during a test and delete them afterwards.
     """
@@ -171,7 +171,7 @@ def sample_song_payload() -> dict[str, str]:
 
 
 @pytest.fixture
-def song_cleanup(api_client: httpx.Client) -> Generator[list[str], None, None]:
+def song_cleanup(api_client: httpx.Client) -> Generator[list[str]]:
     """
     Collect song IDs created during a test and delete them afterwards.
     """

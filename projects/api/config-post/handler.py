@@ -3,16 +3,21 @@ Lambda handler for POST /config endpoint.
 Writes playlist config to DynamoDB.
 """
 
+import importlib
 import json
 import logging
 import os
 import uuid
-from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.exceptions import ClientError
-from pydantic import BaseModel, ValidationError, field_serializer
+from pydantic import ValidationError
+
+if TYPE_CHECKING:
+    from models.config import AppConfig
+else:
+    AppConfig = importlib.import_module("models.config").AppConfig  # type: ignore[attr-defined]
 
 # CloudWatch captures stdout/stderr; Python logging uses stderr by default.
 logger = logging.getLogger(__name__)
@@ -42,59 +47,6 @@ JSON_HEADERS = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
 }
-
-
-# Pydantic models for the config structure
-class Track(BaseModel):
-    """Track definition."""
-
-    id: str
-    src: str
-    title: str
-    artist: str
-    duration: str
-    cover: str
-    isSecret: bool
-
-
-class ConcatenatedPlaylistTrack(BaseModel):
-    """Concatenated playlist track definition."""
-
-    id: str
-    title: str
-    artist: str
-    startTime: Decimal
-    endTime: Decimal
-    duration: Decimal
-
-    @field_serializer("startTime", "endTime", "duration", when_used="json")
-    def serialize_decimal(self, value: Decimal) -> float:
-        """Serialize Decimal to float for JSON."""
-        return float(value)
-
-
-class ConcatenatedPlaylist(BaseModel):
-    """Concatenated playlist definition."""
-
-    enabled: bool
-    file: str
-    tracks: list[ConcatenatedPlaylistTrack]
-    totalDuration: Decimal
-
-    @field_serializer("totalDuration", when_used="json")
-    def serialize_decimal(self, value: Decimal) -> float:
-        """Serialize Decimal to float for JSON."""
-        return float(value)
-
-
-class AppConfig(BaseModel):
-    """App configuration structure."""
-
-    tracks: list[Track]
-    headerMessage: str
-    buildDatetime: str
-    buildHash: str
-    concatenatedPlaylist: ConcatenatedPlaylist
 
 
 def _config_key(config_id: str) -> dict[str, str]:

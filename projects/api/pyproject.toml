@@ -35,7 +35,23 @@ dev-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["config-post", "config-get", "config-delete", "config-list", "config-patch"]
+members = [
+    "config-post",
+    "config-get",
+    "config-delete",
+    "config-list",
+    "config-patch",
+    "song-post",
+    "song-get",
+    "song-delete",
+    "song-patch",
+    "song-list",
+    "models",
+]
+
+[tool.uv.sources]
+# Explicitly declare workspace members that are referenced as dependencies
+lit-up-api-models = { workspace = true }
 
 [tool.black]
 line-length = 88

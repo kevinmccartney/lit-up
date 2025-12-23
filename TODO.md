@@ -47,27 +47,29 @@
   - [x] Can I get fid of local dir?
   - [x] Do I really need UV?
   - [x] Update READMEs to remove consider adding scripts
-- [ ] feat: build songs REST resources
+- [x] feat: build songs REST resources
   - [x] POST
   - [x] GET
   - [x] DELETE
   - [x] PATCH
   - [x] GET ALL
-- [ ] refactor: common models for rest resources
+- [x] refactor: common models for rest resources
 - [ ] infra: create `song_processing_events` queue
 - [ ] infra: build file storage for converted songs
+- [ ] build: create CI
+- [ ] test: add unit tests
+- [ ] terst add web e2e tests
 - [ ] feat: build playlist REST resources
 - [ ] chore: host OpenAPI spec
-- [ ] build: create CI
-- [ ] feat: default color for version
-- [ ] feat: create admin interface
 
 ## v4
 
-- [ ] feat: host media (image/song) processing services
-- [ ] feat: media processing conversion tracking (would I need websocket for this?)
+- [ ] feat: default color for version
+- [ ] feat: create admin interface
+- [ ] refactor: use websocket for song conversion & playlist deployment
 
 ## v5
 
 - [ ] feat: create user REST resources
 - [ ] feat: implement idp for admin
+- [ ] refactor: more types on lambdas

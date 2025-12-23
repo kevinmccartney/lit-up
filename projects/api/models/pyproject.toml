@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lit-up-api-models"
+version = "0.1.0"
+description = "Shared DTO models for Lit Up API (Config, Song, etc.)"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = ["models"]
+package-dir = { "models" = "." }
+
